@@ -7,13 +7,27 @@ from hallway.graph.neo4j_store import get_store
 EXPECTED_AGENTS = ["Critic", "Desk", "Scribe"]
 
 
+def _display_agents(raw) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return sorted(
+        {name.strip().title() for name in raw if isinstance(name, str) and name.strip()}
+    )
+
+
+def _matches_expected(agents: list[str]) -> bool:
+    return {name.casefold() for name in agents} == {
+        name.casefold() for name in EXPECTED_AGENTS
+    }
+
+
 def who_saw_identifiers() -> dict:
-    agents = get_store().who_saw_identifiers()
+    agents = _display_agents(get_store().who_saw_identifiers())
     return {
         "question": "which agents saw identifiers?",
         "agents": agents,
         "expected_on_demo": list(EXPECTED_AGENTS),
-        "matches_expected": agents == EXPECTED_AGENTS,
+        "matches_expected": _matches_expected(agents),
     }
 
 
