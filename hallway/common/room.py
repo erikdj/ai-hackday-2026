@@ -2,10 +2,12 @@
 import asyncio
 import json
 import logging
+import re
 from band.runtime.tools.agent import AgentTools
 from hallway.common.brief import Brief, digest, normalize, validate_brief
 
-PREFIX = 'HANDOFF/1\n'
+PREFIX = 'SAFESCRIBE/1\n'
+LEGACY_PREFIX = 'HANDOFF/1\n'
 AUTHORS = {'TRANSCRIPT': 'desk', 'BRIEF': 'scribe', 'ENRICHMENT': 'researcher',
            'VERDICT': 'critic', 'APPROVAL': 'critic', 'HANDOFF': 'scribe',
            'CASE_CREATED': 'desk', 'OWNER_REQUEST': 'scribe', 'OUTPUT': None}
@@ -28,10 +30,15 @@ def decode_messages(messages: list[dict], ids: dict[str, str]) -> list[dict]:
     records = []
     for message in messages:
         content = message.get('content', '')
-        if not isinstance(content, str) or not content.startswith(PREFIX):
+        if not isinstance(content, str):
+            continue
+        markers=list(re.finditer(r'(?m)^(?:SAFESCRIBE/1|HANDOFF/1)\r?$',content))
+        # A readable heading is presentation only. Exactly one envelope and its
+        # authenticated sender are authoritative, including for legacy messages.
+        if len(markers)!=1:
             continue
         try:
-            value = json.loads(content[len(PREFIX):])
+            value = json.loads(content[markers[0].end():])
         except (ValueError, TypeError):
             continue
         if not isinstance(value, dict):
@@ -89,8 +96,30 @@ def case_state(records: list[dict]) -> dict:
             'approved': any(r['kind'] == 'APPROVAL' for r in records)}
 
 
+def readable_summary(kind: str, payload: dict) -> str:
+    """Small judge-facing facts, without copying patient details into headings."""
+    revision=payload.get('revision')
+    revision=revision if isinstance(revision,int) and not isinstance(revision,bool) else '?'
+    facts={
+        'TRANSCRIPT': 'Synthetic handoff ready for Scribe and Critic.',
+        'BRIEF': f'Revision {revision} ready for Critic review.',
+        'OWNER_REQUEST': 'A follow-up needs a human owner; reply to both Scribe and Critic.',
+        'APPROVAL': f'Revision {revision} approved in the case room only.',
+        'CASE_CREATED': 'New case room created.',
+        'ENRICHMENT': 'Research result recorded.',
+        'HANDOFF': 'Handoff details recorded.',
+        'OUTPUT': 'Worker status recorded.',
+    }
+    if kind=='VERDICT':
+        verdict=payload.get('verdict')
+        facts[kind]=f'{verdict} for revision {revision}.' if verdict in ('VETO','APPROVE') else f'Review recorded for revision {revision}.'
+    if kind not in facts:
+        raise ValueError('Unknown protocol post kind')
+    return f'**{kind}** — {facts[kind]}'
+
+
 async def post(tools: AgentTools, kind: str, payload: dict, roles: list[str], ids: dict[str, str]):
-    content = PREFIX + json.dumps({'kind':kind, **payload}, ensure_ascii=False)
+    content = readable_summary(kind,payload) + '\n\n' + PREFIX + json.dumps({'kind':kind, **payload}, ensure_ascii=False)
     if not roles:
         # SDK messages require recipients; status is a durable Band task event.
         return await tools.send_event(content=content, message_type='task')
