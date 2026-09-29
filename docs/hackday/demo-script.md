@@ -43,7 +43,7 @@ Merge.dev was cut at the pivot (no healthcare fit). Plaud: no device.
 
 ## Cold-start checklist (run twice before judging)
 
-- [ ] `doppler run -- ./scripts/check-crusoe.sh` and `doppler run -- python3 scripts/check_crusoe_tools.py --max 20` pass; `CRUSOE_MODEL_STRONG/FAST/CRITIC` in Doppler are deepseek-ai/Deepseek-V4-Flash, Qwen/Qwen3.8-27B, Qwen/Qwen3.8-27B (thinking off via CRUSOE_DISABLE_THINKING_MODELS) (overseer probe on JV-97)
+- [ ] `doppler run -- ./scripts/check-crusoe.sh` and `doppler run -- python3 scripts/check_crusoe_tools.py --max 20` pass; `CRUSOE_MODEL_STRONG/FAST/CRITIC` in Doppler are zai-org/GLM-5.3 (reasoning_effort=low; fallback deepseek-ai/Deepseek-V4-Flash with a 4096 cap), Qwen/Qwen3.8-27B, Qwen/Qwen3.8-27B (thinking off via CRUSOE_DISABLE_THINKING_MODELS) (pins v4, live evidence on JV-116)
 - [ ] Six Band agents connected; stale case rooms archived (stretch only: Closer on Erik's second account)
 - [ ] Neo4j Aura instance awake (free tier pauses); a prior encounter for the synthetic patient loaded so the lineage and history queries return rows
 - [ ] Brave key live; `MOCK_*` all 0 for tier 1
