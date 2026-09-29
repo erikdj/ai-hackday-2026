@@ -1,0 +1,10 @@
+{
+  "plaud_id": "fixture-no-company-002",
+  "at": "2026-09-29T17:15:00Z",
+  "speakers": [
+    "Erik Jones",
+    "Jordan Lee"
+  ],
+  "transcript": "Erik Jones: I am Erik Jones.\nJordan Lee: I am Jordan Lee. I enjoyed the talk about evaluating language models.\nErik Jones: I will send Jordan the public talk notes tomorrow.",
+  "note": "A personal conversation; no company was mentioned."
+}

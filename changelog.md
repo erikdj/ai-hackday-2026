@@ -10,6 +10,11 @@ milestones rather than releases.
 
 ### Added
 - `scripts/check_crusoe_tools.py` + tests: lists Crusoe models, probes tool calling, recommends fast/strong/critic (JV-97).
+- JV-100: initial Band-only HALLWAY fixture slice with six process entrypoints, authenticated
+  room records, conditional recruitment, deterministic veto checks, two repair rounds and
+  human escalation. Downstream integrations remain explicit placeholders; live execution is unverified.
+- Crusoe catalog and forced/automatic tool-call probes, pinned Python dependencies,
+  six-process Compose scaffolding and offline protocol/smoke-safety tests.
 - `docs/hackday/demo-script.md`: two-minute HALLWAY demo flow, delete tests, cold-start checklist, fallbacks (JV-102).
 - `docs/hackday/hallway-build-brief.md`: the HALLWAY build brief (idea, six-agent Band crew, Crusoe wiring,
   self-serve tool map with delete tests, build order, demo script, definition of done). JV-95.

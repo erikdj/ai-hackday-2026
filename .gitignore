@@ -42,3 +42,10 @@ Thumbs.db
 
 # Local plugin state
 .omc/
+
+# HALLWAY agent credentials and local execution evidence
+agent_config.yaml
+agent_config.*.yaml
+!agent_config.yaml.example
+artifacts/
+.pytest_cache/

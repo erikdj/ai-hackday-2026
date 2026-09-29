@@ -8,7 +8,7 @@ this file is the offline summary. Update it in every PR that changes the plan.
 - [x] JV-95 Idea: HANDOFF (pivoted from HALLWAY 11:10 PDT; brief in docs/hackday/handoff-build-brief.md)
 - [x] JV-96 Tech stack decision, ADR-0002 accepted (PR #3)
 - [ ] JV-97 Crusoe account, API key, hello-world inference call (prize qualification gate)
-- [ ] JV-100 Band integration that passes the delete test (Best Use of BAND, $1,000). Tier 1 for HALLWAY
+- [ ] JV-100 Band-only fixture slice in progress; authenticated messages, veto/repair and revision-bound approval. Live verification pending credentials; contributes to JV-105.
 - [x] JV-104 Neo4j starter recipe written into sponsor-integrations.md (implementation is JV-106)
 
 ## Next
@@ -28,6 +28,9 @@ this file is the offline summary. Update it in every PR that changes the plan.
 - [ ] JV-98 DuploCloud devkit (Tier 2, only after `make demo` is green)
 - [ ] JV-101 Additional sponsor integrations that do real work (Neo4j, Vultr, Brave, Similarweb, Merge.dev, Plaud, UserTesting, Nebius)
 - [ ] JV-103 Submit sponsor developer feedback (leaderboard points)
+
+The live path is not yet verified. Agentbridge, coding agents and Linear are development
+tools only; runtime handoffs must go through Band. A mocked check is never a live demo pass.
 
 ## Done
 

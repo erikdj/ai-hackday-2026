@@ -1,0 +1,33 @@
+x-agent: &agent
+  build: .
+  env_file: .env
+  user: "${HALLWAY_UID:-1000}:${HALLWAY_GID:-1000}"
+  environment:
+    BAND_CONFIG_PATH: /app/agent_config.yaml
+  volumes:
+    - type: bind
+      source: ./agent_config.yaml
+      target: /app/agent_config.yaml
+      read_only: true
+  restart: unless-stopped
+  init: true
+
+services:
+  desk:
+    <<: *agent
+    command: ["python", "-m", "hallway.agents.desk"]
+  scribe:
+    <<: *agent
+    command: ["python", "-m", "hallway.agents.scribe"]
+  researcher:
+    <<: *agent
+    command: ["python", "-m", "hallway.agents.researcher"]
+  critic:
+    <<: *agent
+    command: ["python", "-m", "hallway.agents.critic"]
+  grapher:
+    <<: *agent
+    command: ["python", "-m", "hallway.agents.grapher"]
+  closer:
+    <<: *agent
+    command: ["python", "-m", "hallway.agents.closer"]
