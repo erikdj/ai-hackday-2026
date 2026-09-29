@@ -1,0 +1,36 @@
+# Informational only. Per CLAUDE.md there is no gating: this workflow is never a required check.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Whitespace and conflict markers
+        # Informational only: `|| true` so this never fails the job.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              echo "Skipping whitespace check: new branch (before SHA is all zeros)"
+              exit 0
+            fi
+          fi
+          git diff --check "$BASE" HEAD || true
+      - name: No .env committed
+        # Informational only: warn, but never fail the job.
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\..+)?$' | grep -vxF '.env.example' ; then
+            echo "::warning::a .env file is tracked"; fi
+      - name: Obvious secrets scan
+        run: |
+          if git grep -nE '(sk-ant-[A-Za-z0-9_-]{10,}|sk-or-v1-[A-Za-z0-9]{10,}|AKIA[0-9A-Z]{16})' -- . ':!*.md' ; then
+            echo "::warning::possible secret found"; fi
+  # Product build/test jobs are added once ADR-0002 picks the stack.
