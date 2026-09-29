@@ -64,7 +64,7 @@ class McpHandleTests(unittest.TestCase):
         names = [tool["name"] for tool in response["result"]["tools"]]
         self.assertEqual(
             names,
-            ["who_saw_identifiers", "open_followups_by_owner", "patient_history"],
+            ["who_saw_identifiers", "open_followups_by_owner", "compliance_narrative", "patient_history"],
         )
 
     def test_who_saw_matches_queries(self):

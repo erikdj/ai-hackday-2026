@@ -5,11 +5,17 @@ _PAGE = """<!doctype html>
 <body>
 <h1>TrustEdge AI Safe Scribe: who saw what</h1>
 <pre id="who"></pre><pre id="followups"></pre><pre id="history"></pre>
+<h2>Compliance narrative (written by Crusoe from agent names, field names and counts only)</h2>
+<p id="narrative">loading…</p><pre id="narrative_inputs"></pre>
 <script>
 fetch("/summary").then(function (r) { return r.json(); }).then(function (d) {
   document.getElementById("who").textContent = JSON.stringify(d.who_saw_identifiers);
   document.getElementById("followups").textContent = JSON.stringify(d.open_followups);
   document.getElementById("history").textContent = JSON.stringify(d.histories);
+});
+fetch("/lineage/narrative").then(function (r) { return r.json(); }).then(function (d) {
+  document.getElementById("narrative").textContent = d.narrative ? d.narrative + "  [" + d.provider + " / " + d.model + "]" : (d.error || "unavailable");
+  document.getElementById("narrative_inputs").textContent = d.inputs ? "sent to the model: " + JSON.stringify(d.inputs) : "";
 });
 </script>
 </body></html>
@@ -43,6 +49,21 @@ def create_app():
     @app.get("/summary")
     def summary():
         return queries.summary()
+
+    @app.get("/lineage/narrative")
+    def lineage_narrative():
+        from fastapi.responses import JSONResponse
+
+        from hallway.common.llm import InferenceUnavailable
+        from hallway.dashboard import narrative
+
+        try:
+            return narrative.compliance_narrative()
+        except (InferenceUnavailable, ValueError) as exc:
+            return JSONResponse(
+                status_code=503,
+                content={"error": f"Crusoe inference unavailable; no other provider is used ({type(exc).__name__})"},
+            )
 
     @app.get("/", response_class=HTMLResponse)
     def index():
