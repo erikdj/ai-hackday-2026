@@ -15,6 +15,9 @@ from hallway.dashboard import queries
 from hallway.graph.neo4j_store import get_store
 
 IDENTIFIER_FIELDS = ("patient_name", "dob", "mrn", "phone", "address")
+# Purposes that mean the agent handled case evidence (transcript or brief) on the PHI side. An
+# agent with such rows but no identifier-field rows has unverified evidence, not proven non-access.
+_PHI_SIDE_PURPOSES = ("intake", "extraction", "review")
 _SAFE_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9 _-]{0,40}$")
 # Narrative uses the FAST tier client (Qwen, thinking off). The llm() factory keys options by
 # runtime role; 'grapher' is the non-transcript role on that tier, so its client is reused here.
@@ -24,8 +27,9 @@ SYSTEM_PROMPT = (
     "You write a short compliance statement for a hospital privacy officer about an AI scribe "
     "system. Use only the JSON you are given. Do not invent agents, fields, patients, numbers or "
     "people. Do not name any person. Three sentences, plain language: which agents processed "
-    "patient identifiers and which identifier categories, that downstream agents did not, and "
-    "that the record is pseudonymous. No preamble."
+    "patient identifiers and which identifier categories, which agents have no identifier access, "
+    "which (if any) have unverified evidence and must not be described as non-accessing, and that "
+    "the record is pseudonymous. No preamble."
 )
 
 
@@ -41,6 +45,7 @@ def narrative_inputs() -> dict:
     store = get_store()
     fields_by_agent: dict[str, set[str]] = {}
     seen_agents: set[str] = set()
+    phi_side: set[str] = set()
     for row in store.lineage():
         agent = _safe(row.get("agent")) if isinstance(row, dict) else None
         if not agent:
@@ -49,12 +54,18 @@ def narrative_inputs() -> dict:
         field = row.get("field")
         if field in IDENTIFIER_FIELDS:
             fields_by_agent.setdefault(agent, set()).add(field)
+        elif row.get("purpose") in _PHI_SIDE_PURPOSES:
+            phi_side.add(agent)
+    with_access = set(fields_by_agent)
+    unverified = phi_side - with_access
+    without_access = seen_agents - with_access - unverified
     summary = queries.summary()
     return {
         "system": "Safe Scribe",
-        "agents_with_identifier_access": sorted(fields_by_agent),
+        "agents_with_identifier_access": sorted(with_access),
         "identifier_fields_by_agent": {a: sorted(f) for a, f in sorted(fields_by_agent.items())},
-        "agents_without_identifier_access": sorted(seen_agents - set(fields_by_agent)),
+        "agents_with_unverified_identifier_evidence": sorted(unverified),
+        "agents_without_identifier_access": sorted(without_access),
         "pseudonymous_patients": len(summary.get("histories") or []),
         "encounters": sum(int(h.get("count") or 0) for h in summary.get("histories") or []),
         "lineage_edges": int(summary.get("lineage_edges") or 0),
@@ -82,9 +93,13 @@ def compliance_narrative(client=None) -> dict:
         from hallway.common.llm import InferenceUnavailable
 
         raise InferenceUnavailable("Crusoe returned no narrative text")
+    metadata = getattr(response, "response_metadata", None) or {}
+    model = metadata.get("model_name") or metadata.get("model")
     return {
         "provider": "crusoe",
-        "model": getattr(client, "model_name", None) or getattr(client, "model", None),
+        # The completion names the model that actually answered (primary or Crusoe fallback).
+        "model": model or getattr(client, "model_name", None) or getattr(client, "model", None),
+        "model_source": "completion" if model else "client",
         "inputs": inputs,
         "narrative": text.strip(),
     }

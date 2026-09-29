@@ -13,20 +13,22 @@ DOB = "March fourth, nineteen fifty-two"
 
 
 class _Reply:
-    def __init__(self, content):
+    def __init__(self, content, model=None):
         self.content = content
+        self.response_metadata = {"model_name": model} if model else {}
 
 
 class _FakeClient:
     model_name = "Qwen/Qwen3.8-27B"
 
-    def __init__(self, reply="Desk, Scribe and Critic processed identifiers. Others did not. Records are pseudonymous."):
+    def __init__(self, reply="Desk, Scribe and Critic processed identifiers. Others did not. Records are pseudonymous.", model=None):
         self.reply = reply
+        self.model = model
         self.messages = None
 
     def invoke(self, messages):
         self.messages = messages
-        return _Reply(self.reply)
+        return _Reply(self.reply, self.model)
 
 
 def _seed():
@@ -41,6 +43,7 @@ def _seed():
             {"agent": "scribe", "field": "patient_name", "purpose": "extraction"},
             {"agent": "critic", "field": "dob", "purpose": "review"},
             {"agent": "grapher", "field": "brief", "purpose": "graph_write"},
+            {"agent": "researcher", "field": "brief", "purpose": "extraction"},
         ],
         f"p_{PATIENT_NAME.replace(' ', '')}",
         "enc-1",
@@ -62,6 +65,8 @@ class NarrativeTests(unittest.TestCase):
         self.assertEqual(inputs["agents_with_identifier_access"], ["Critic", "Desk", "Scribe"])
         self.assertEqual(inputs["identifier_fields_by_agent"]["Desk"], ["dob", "patient_name"])
         self.assertEqual(inputs["agents_without_identifier_access"], ["Grapher"])
+        # A PHI-side processing row with no identifier rows is unverified, never "no access".
+        self.assertEqual(inputs["agents_with_unverified_identifier_evidence"], ["Researcher"])
         self.assertEqual(inputs["pseudonymous_patients"], 1)
         blob = json.dumps(inputs)
         for forbidden in (PATIENT_NAME, "Callahan", DOB, "p_Robert", "enc-1", "labs"):
@@ -75,6 +80,12 @@ class NarrativeTests(unittest.TestCase):
         self.assertNotIn("Callahan", sent)
         self.assertEqual(result["provider"], "crusoe")
         self.assertEqual(result["model"], "Qwen/Qwen3.8-27B")
+        self.assertEqual(result["model_source"], "client")
+
+    def test_model_is_taken_from_the_completion_when_present(self):
+        result = narrative.compliance_narrative(client=_FakeClient(model="deepseek-ai/Deepseek-V4-Flash"))
+        self.assertEqual(result["model"], "deepseek-ai/Deepseek-V4-Flash")
+        self.assertEqual(result["model_source"], "completion")
         self.assertTrue(result["narrative"].startswith("Desk, Scribe and Critic"))
 
     def test_empty_model_reply_fails_closed(self):
