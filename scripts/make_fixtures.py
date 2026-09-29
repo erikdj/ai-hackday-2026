@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build HANDOFF demo fixtures: two-speaker scenario scripts -> transcript .txt + 16 kHz mono .wav.
+"""Build Safe Scribe demo fixtures: two-speaker scenario scripts -> transcript .txt + 16 kHz mono .wav.
 
 Usage:
     python3 scripts/make_fixtures.py                 # all scripts in scripts/fixtures/

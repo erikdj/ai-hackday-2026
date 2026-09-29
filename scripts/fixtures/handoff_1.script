@@ -1,4 +1,4 @@
-# HANDOFF handoff_1: the PRIOR encounter. Same synthetic patient as case 2, two weeks earlier,
+# Safe Scribe handoff_1: the PRIOR encounter. Same synthetic patient as case 2, two weeks earlier,
 # emergency department after a fall at home. Every follow-up has an owner. Used to seed
 # Neo4j before the demo so the Grapher can link case 2 to it (same patient, same warfarin).
 # Identifiers are spoken (allowed inside the clinical room); Critic must keep them out of

@@ -1,4 +1,4 @@
-"""Tests for the in-memory HANDOFF graph store."""
+"""Tests for the in-memory Safe Scribe graph store."""
 import importlib.util
 import json
 from pathlib import Path

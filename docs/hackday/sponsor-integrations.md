@@ -60,11 +60,11 @@ Status: candidate (JV-100).
 
 ## Neo4j
 
-Status: Tier 1 for HALLWAY, cross-case memory (JV-104 under JV-101).
+Status: Tier 1 for Safe Scribe, cross-case memory (JV-104 under JV-101).
 
 **Start from the sponsor's hackathon starter:**
 https://github.com/MacklinEngineering/Hackathon_Starter_Repo_Benefits_Of_Neo4j (Apache-2.0,
-Python). Its "agent memory" prompt is HALLWAY's Grapher job.
+Python). Its "agent memory" prompt is Safe Scribe's Grapher job.
 
 1. AuraDB Free at https://console.neo4j.io. Copy the instance id. Download the credentials file
    at once (password is shown once).
