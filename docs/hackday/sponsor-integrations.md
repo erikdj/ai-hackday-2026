@@ -78,8 +78,8 @@ Python). Its "agent memory" prompt is HALLWAY's Grapher job.
    `NEO4J_USERNAME`, `NEO4J_PASSWORD` from `.env`. Copy the starter's `tools.py` pattern:
    `get_schema`, `read_cypher` (read-only routing, 20 s timeout, 100-row cap), and a vector
    index queried with `db.index.vector.queryNodes`. Swap its local `embed()` for Nebius.
-5. Consider the `neo4j-agent-memory` package the starter recommends for save/extract/recall,
-   pointed at our own Aura instance, instead of hand-rolling the memory layer.
+5. The starter recommends the `neo4j-agent-memory` package for save/extract/recall. Not on the
+   demo path (five labels and MERGE-everything is enough under the clock); a later option.
 6. Judge-visible: three canned dashboard queries (everyone we met, who else met company X, open
    commitments by owner) plus a graph drawing with `neo4j-viz` showing two cases linked by a
    shared person or company. Keep the vector index so the "graph + vector beats vector-only"

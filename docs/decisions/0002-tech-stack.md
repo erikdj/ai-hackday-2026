@@ -1,7 +1,7 @@
 # ADR-0002: Tech stack
 
 Status: Proposed for human sign-off (Erik, Jaiven), 2026-09-29. Derived from Jaiven's HALLWAY
-build brief (PR #2, `BRIEF.md`) and the review on Linear JV-95.
+build brief (PR #4, `docs/hackday/hallway-build-brief.md`) and the review on Linear JV-95.
 
 ## Context
 
@@ -23,18 +23,18 @@ recruitment, Critic with a real veto, Neo4j memory) and leaves the domain swappa
 | Agent framework | `band-sdk[langgraph]` with `LangGraphAdapter(llm=ChatOpenAI(base_url=CRUSOE, ...))` | Documented Band quickstart with the base URL swapped; no custom adapter |
 | LLM route to Crusoe | Crusoe Managed Inference direct, `https://api.inference.crusoecloud.com/v1`, ids from `GET /v1/models` | Judge-visible Crusoe use; one `llm(role)` factory in `common/llm.py`; fallback chain Crusoe A, Crusoe B, then OpenRouter logged in red and never on the demo path |
 | Coordination | Band rooms, roster, gate, veto; `Emit.THOUGHTS` and `Emit.TOOL_CALLS` on every agent | Best Use of BAND delete test |
-| Memory | Neo4j AuraDB Free, `graph/schema.cypher`, vector index for entity resolution (Nebius embeddings); follow the sponsor's hackathon starter (`tools.py` pattern, `neo4j-agent-memory`, `neo4j-viz`) | Neo4j prizes, cross-case linking; see JV-104 |
+| Memory | Neo4j AuraDB Free, `graph/schema.cypher` (five labels, MERGE everything), vector index for entity resolution (Nebius embeddings); follow the sponsor's hackathon starter (`tools.py` pattern, `neo4j-viz`). `neo4j-agent-memory` is a later option, not on the demo path | Neo4j prizes, cross-case linking; see JV-104 |
 | Web / API | FastAPI (upload page, dashboard, ask-the-graph via OpenRouter) | Small, async, one process |
 | Transcription | faster-whisper, local | No device dependency |
 | Hosting for demo | Vultr VM, Docker Compose; laptop is the fallback | Demo does not ride venue wifi |
 | Tests | pytest; `make demo` runs `fixtures/case_2.txt` end to end as the acceptance test; mocks per integration behind `MOCK=1` | Hackday-realistic coverage: every integration has a mock and one real-path check |
 | Product code location | `hallway/` in this repo, one file per agent and per integration | Brief section 5 |
-| Dependencies | band-sdk, langgraph, langchain-openai, openai, neo4j, neo4j-viz, fastapi, httpx, faster-whisper, pytest (plus neo4j-agent-memory if adopted) | Anything else needs a reason in the commit message |
+| Dependencies | band-sdk, langgraph, langchain-openai, openai, neo4j, neo4j-viz, fastapi, httpx, faster-whisper, pytest | Anything else needs a reason in the commit message |
 
 Sponsor tool tiers (from the brief, amended by review): Tier 1 Crusoe, Band, Neo4j. Tier 2
 OpenRouter, Nebius, Brave, Merge.dev, Vultr. Amendment: DuploCloud is self-serve (local Docker
-devkit, work email only) and stays a Tier 2 candidate, registering HALLWAY as a skill or MCP
-server so a ticket can open a case. Plaud is cut unless a device appears; the pitch says "any
+devkit, work email only) and stays a Tier 2 candidate, taken up only after `make demo` is green
+on Vultr: register HALLWAY as a skill or MCP server so a ticket can open a case. Plaud is cut unless a device appears; the pitch says "any
 transcript", not "Plaud transcript".
 
 ## Consequences
