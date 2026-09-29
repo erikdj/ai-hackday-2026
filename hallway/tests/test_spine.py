@@ -285,6 +285,12 @@ class CredentialTests(unittest.TestCase):
 
 
 class ProtocolTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        # Offline suite: FakeBand has no participants API, so keep review() on the
+        # case-only path even when the shell (e.g. Doppler dev) sets ENABLE_APPROVED_ROOM=1.
+        env=patch.dict(os.environ,{'ENABLE_APPROVED_ROOM':'0'})
+        env.start();self.addCleanup(env.stop)
+
     async def test_transcript_arrives_before_brief_without_false_failure(self):
         band=FakeBand();band.role='critic'
         self.assertEqual(await review(band,IDS,True,[]),{'status':'WAITING_FOR_BRIEF'})
