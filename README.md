@@ -174,6 +174,6 @@ The agents run as Band Remote Agents, one process per role, under `doppler run` 
 Two humans and three agent sessions in six hours. Every task a Linear issue, every change a pull
 request, every PR reviewed locally by an independent AI reviewer (Astra via Codex CLI) before
 merge, and a third Claude session acting as overseer: holding the clock, merging reviewed PRs, and
-challenging any claim not backed by a live run. Doppler is the single secrets store. Forty-eight
+challenging any claim not backed by a live run. Doppler is the single secrets store. Forty-nine
 PRs merged in the day. The integration ledger says verified, mocked, attempted or not used per tool,
 with the evidence line for each. See [docs/agent-instructions.md](docs/agent-instructions.md).
