@@ -67,8 +67,9 @@ fixtures and is development tooling only.
 ## Where the patient data goes today, and what changes for a real deployment
 
 Three agents in one room (Desk, Scribe, Critic) see the transcript, and they run on Crusoe inside a
-Band room. Everything downstream (Grapher, Researcher, the dashboard, the DuploCloud tool) receives
-only a pseudonymous brief or lineage metadata, never the transcript. Today this is acceptable for
+Band room. Grapher receives the pseudonymous brief: no identifiers, but clinical content tied to a
+pseudonym, which is still PHI under HIPAA until formally de-identified. Researcher, the dashboard
+narrative and the DuploCloud tools receive only drug names or lineage metadata. Today this is acceptable for
 one reason: **every patient is synthetic.** Crusoe's self-serve terms exclude HIPAA-regulated data,
 Band's terms are silent on it, and no business associate agreement is in place with anyone. Nothing
 runs in an enclave.
@@ -77,8 +78,10 @@ What we claim is the architecture: **chosen** (the hospital picks where the room
 run; the endpoint is one configuration value), **minimized** (audio never moves; exactly three agents
 see identifiers; room membership is the boundary), **provable** (the graph records which agent
 touched which field, and a Crusoe model turns that into the sentence a privacy officer reads). For
-a real deployment the PHI-side pair moves to a contracted Crusoe deployment or hospital GPUs; the
-downstream agents stay exactly where they are. Vendor terms with sources, the gaps, and the
+a real deployment, every component that receives the transcript or the pseudonymous brief (Scribe,
+Critic, Desk, Grapher, the Band rooms, the Neo4j store) needs a business associate agreement or a
+hospital-controlled substitute; only the agents that receive drug names or lineage metadata can stay
+on public serverless services unchanged. Vendor terms with sources, the gaps, and the
 production checklist: [docs/compliance/hipaa.md](docs/compliance/hipaa.md). Words we do not use:
 "HIPAA compliant", "de-identified", "enclave".
 
@@ -86,17 +89,18 @@ production checklist: [docs/compliance/hipaa.md](docs/compliance/hipaa.md). Word
 
 Crusoe is the only inference provider in the code; if it is unavailable, the case pauses.
 
-| Today, live | On Crusoe | Sees PHI? |
+| Today, live | On Crusoe | Receives |
 | --- | --- | --- |
-| Scribe extracts the quoted brief | `zai-org/GLM-5.3`, low reasoning | yes (transcript) |
-| Desk opens the case, Critic reviews and vetoes | `Qwen/Qwen3.8-27B`, thinking off, a second model family by rule | yes (transcript) |
-| Grapher writes the pseudonymous graph through tool calls | Qwen | no |
-| Researcher turns drug names into sourced facts | Qwen | no |
-| **Compliance narrative**: a three-sentence privacy-officer statement written from lineage metadata only, shown on the dashboard and served as a DuploCloud tool, with the exact payload sent | Qwen | no |
+| Scribe extracts the quoted brief | `zai-org/GLM-5.3`, low reasoning | transcript (PHI) |
+| Desk opens the case, Critic reviews and vetoes | `Qwen/Qwen3.8-27B`, thinking off, a second model family by rule | transcript (PHI) |
+| Grapher writes the pseudonymous graph through tool calls | Qwen | pseudonymous brief (no identifiers; still PHI until formally de-identified) |
+| Researcher turns drug names into sourced facts | Qwen | drug names only |
+| **Compliance narrative**: a three-sentence privacy-officer statement written from lineage metadata only, shown on the dashboard and served as a DuploCloud tool, with the exact payload sent | Qwen | agent names, field names, counts |
 
-The split matters: the PHI-side work is two agents and one contract away from a dedicated Crusoe
-deployment or hospital GPUs; everything below the line runs on Crusoe serverless under today's terms
-and is where a scaled system spends most of its inference. Next on Crusoe, in order: Closer drafting
+The split matters: the agents that receive the transcript or the pseudonymous brief are one
+contract away from a dedicated Crusoe deployment or hospital GPUs; the agents that receive only drug
+names or lineage metadata run on Crusoe serverless under today's terms, and that is where a scaled
+system spends a growing share of its inference. Next on Crusoe, in order: Closer drafting
 the discharge follow-up from the redacted brief in the approved room; "ask the graph" natural
 language over the pseudonymous graph for the dashboard; per-shift compliance digests across
 encounters; a Crusoe-served embedding model, when the catalog has one, for suggesting prior
