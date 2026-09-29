@@ -129,8 +129,8 @@ scripts/                       stack-agnostic helper scripts (Crusoe smoke test)
 ```
 
 Product code goes under `hallway/` once ADR-0002 is accepted (Python, Band + LangGraph, Crusoe
-direct, FastAPI, Neo4j). The build brief is `docs/hackday/handoff-build-brief.md` (HANDOFF, pivoted from HALLWAY at 11:10 PDT;
-the original stays as `hallway-build-brief.md` for history). If a DuploCloud
+direct, FastAPI, Neo4j). The build brief is `docs/hackday/safe-scribe-build-brief.md`. The `hallway/` directory name predates
+the product name and is not renamed during the hackday; in prose the product is always **Safe Scribe**. If a DuploCloud
 extension is added later, it lives under `extensions/<name>/` per the devkit docs.
 
 ## Docs and hygiene

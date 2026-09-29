@@ -4,16 +4,14 @@ Team entry for **The AI Conference Hack Day 2026** (September 29, 2026, San Fran
 Erik Jones and Jaiven Spence.
 
 Goal: build an agent that runs live, uses **Crusoe** for inference (required for the overall
-prize pool), and wires in other sponsor tools that do real work. The product is **HANDOFF**: a
+prize pool), and wires in other sponsor tools that do real work. The product is **Safe Scribe**: a
 nurse-to-nurse shift handoff becomes a Band case room where agents on Crusoe extract a quoted
 clinical brief, a Critic vetoes unsupported claims, unowned follow-ups, and any identifier leaving
 the room, and Neo4j records which agent saw which field.
 
 ## Status
 
-- Product code and run instructions: [hallway/README.md](hallway/README.md). Phase 1 is offline-tested; live Band/Crusoe verification remains pending.
-
-- Idea: **HANDOFF**, a PHI-safe clinical handoff scribe with an enforced data boundary and access lineage (pivoted from HALLWAY at 11:10 PDT). Build brief: [docs/hackday/handoff-build-brief.md](docs/hackday/handoff-build-brief.md). See Linear JV-95.
+- Idea: **Safe Scribe**, a PHI-safe clinical handoff scribe with an enforced data boundary and access lineage. Build brief: [docs/hackday/safe-scribe-build-brief.md](docs/hackday/safe-scribe-build-brief.md). See Linear JV-95.
 - Tech stack: [ADR-0002](docs/decisions/0002-tech-stack.md), accepted. Python, Band + LangGraph, Crusoe direct, FastAPI, Neo4j.
 - Project tracking: Linear project **AI Hackday 2026** (`P-JV-47`), Jaiven team.
 
