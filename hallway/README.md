@@ -1,71 +1,67 @@
-# Safe Scribe by TrustEdge AI — phase 1: the case room
+# Safe Scribe by TrustEdge AI
 
-Safe Scribe is designed to turn a nurse-to-nurse shift handoff into a Band case room where agents
-on Crusoe review evidence before approval. Phase 1 implements the spine only: Desk, Scribe, Critic and the human charge
-nurse in one Band room, with deterministic ownership and identifier checks and an approval that names the exact brief
-revision. Downstream execution is not connected to this phase.
+Safe Scribe turns a synthetic nurse-to-nurse handoff into a Band case room where
+agents on Crusoe review evidence before approval. A separate approved room gates the
+Grapher write; optional drug-only research adds sourced context.
 
 **Every patient in this repository is synthetic.** Names, dates of birth, record numbers and phone
 numbers in `hallway/fixtures/` are invented (see `hallway/fixtures/README.md`). Say so on screen.
 
-## Verified status
+## Verified live evidence
 
-Real Crusoe function calling has passed. Band message parsing, case creation and case reading
-were verified in `550fdd7`. With `cfb1268`, live case `4be3e276-d248-4558-878d-6678b75f4ec8`
-produced a BRIEF at 12:01:40, a VETO at 12:01:45, and an OWNER_REQUEST for `fu_call_daughter`
-(message `0d2a7a40-2f8f-4951-b0a2-a0740823f462`). It is awaiting Erik's real reply; no approval
-has been observed. This case's observer also expired after 90 seconds while awaiting the human
-reply. The agents remain connected and a late reply can complete the case, but this run failed
-the timing requirement.
+Case `19ecdb31-2006-4284-acd3-0a6c22d1a6e0` completed the live Band/Crusoe
+veto, human ownership, approval and real graph-write path. The source was an atomic local text upload of `handoff_2`, not audio or Plaud:
 
-Setting `reasoning_effort=low` for GLM only restored generation within the existing 10-second
-request timeout; model pins and timeouts were unchanged. The earlier GLM/Kimi retry timeouts
-and failed 90-second demo remain historical failures. The complete live demo is still not green.
-The offline suite has **71 passing tests** (66 product + 5 smoke); those tests do not establish
-live end-to-end success.
-
-## What phase 1 is, and is not
-
-| Is | Is not |
+| Evidence | Observed result |
 | --- | --- |
-| Band is the only coordination channel: transcript, brief, owner request, verdict and approval are all Band messages, authenticated by sender id. Delete Band and there is no room, no roster, no veto. | A completed live workflow. BRIEF, VETO and OWNER_REQUEST are now observed; the case awaits a real human reply and has no approval yet. |
-| Critic checks are code, explained by the model: every quote is a normalized substring of the transcript; every pending follow-up has an owner; no direct identifier from the transcript appears anywhere in the outbound JSON. | A de-identification system. The identifier guard is a regex set plus an identifier list pulled from the transcript. It is tuned to the synthetic fixtures. It is not HIPAA anything. |
-| Tests exercise ownerless follow-up and identifier rejection before revision-bound approval. Live veto count/order depends on the actual extraction; no errors are fabricated to stage a second veto. | The research room, the approved (boundary) room, Grapher, Closer, Neo4j lineage, Brave. Those are phases 2 and 3 (JV-106, JV-107). The agent entrypoints exist, but their downstream execution is disabled in phase 1. |
-| An owner for an unowned follow-up comes only from a human's message in the room, recorded with that message id as provenance. Otherwise the item stays `unresolved` and the approval lists it. | Auto-assignment. The model never invents an owner. |
-| Fail closed: Crusoe model A, then Crusoe model B, then "inference unavailable, case paused" posted to the room. | Any external provider for agents that hold the transcript. |
+| VETO `18c8fe26-664a-4ab2-bc44-520aca503b1d` | Critic rejected the unowned follow-up. |
+| Human reply `92ce7975-3ad3-41c1-af0a-0e8e7c31116d` | Erik said “I'll own that” at 13:21 PDT, mentioning both Scribe and Critic. The original reply was recovered at 13:39; no replacement ownership was fabricated. |
+| BRIEF revision 2 / APPROVE verdict `82c1f9ca-6000-411d-9445-b6141b4496bb` | Revised ownership led to Critic approval. |
+| APPROVAL `006950b2-6397-4475-94b1-c40f712ca00f` | Authenticated approval record for the revised brief. |
+| Approved room `4704ff81-f261-4cba-84ba-6c79e75aa06f` | Separate downstream room received the approved payload. |
+| Real graph receipt `e02d4a4b-e543-43b1-866e-70358731a12e` | Real Neo4j write; `merged: false` for this encounter. No deduplication success is claimed. |
+| Research room `6ebcdfae-eb57-4365-b030-10fe3ccaa9f3` | Runtime recruitment produced three real Brave facts with source URLs (enrichment `3ebd9770-41ff-4b5b-8799-518dd579fe1c`) before research was disabled for the recording preset. |
 
-## Architecture (phase 1)
+The lineage query returned `critic`, `desk`, and `scribe` runtime field-processing
+roles. This is processing provenance, **not proof a human read identifiers**. The
+Band manifest retains the source-message evidence. PRs #42 and #43 are merged.
+Historical network/delivery delays mean this run **did not meet 90 seconds**.
+A successful write does not establish the timing target, Vultr deployment, or event
+submission. The three timed rehearsals in [DEMO.md](DEMO.md) remain unrecorded.
 
+Text-upload intake was verified on this path. Audio/Whisper verification is separate
+Claude-owned evidence; this case must not be presented as proof of an audio run.
+Run `make check` for the current offline test count; offline tests are not live evidence.
+
+## Coordination and boundaries
+
+Band carries authenticated transcript, brief, owner request, verdict and approval
+messages. Delete Band and the agents have no coordination channel. Every agent's
+model runs on Crusoe; inference fails closed after the configured Crusoe fallback.
+Critic checks quoted evidence, ownership and recognized identifiers. An unowned
+follow-up is assigned only from an authenticated human reply or retained as unresolved.
+The identifier guard is a regex/list demonstration, not certified de-identification.
+
+```text
+Local text upload -> Desk -> Band case: Desk, Scribe, Critic, human
+                                | VETO -> human reply -> revised brief -> APPROVE
+                                | optional drug-only room: Scribe, Researcher
+                                v
+                            approved room: Critic, Grapher, human -> Neo4j
 ```
-  presenting laptop                          Band (app.band.ai)
-  -----------------                          -----------------------------------------
-  fixtures/handoff_2.txt  (or .wav ->        case-<slug> room
-  faster-whisper, phase 2)                     participants: Desk, Scribe, Critic, human
-        |                                      |
-        v                                      |  TRANSCRIPT   (Desk -> @Scribe @Critic)
-      Desk ---- creates room, posts ---------> |  BRIEF rev N  (Scribe -> @Critic)
-      assigns pseudo_id on the laptop          |  OWNER_REQUEST(Scribe -> @human @Critic)
-      (salted hash; mapping never leaves)      |  human reply  @Scribe @Critic "I'll own it" / "/own <id> <name>"
-                                               |  VERDICT      (Critic -> @Scribe)  VETO with reasons
-                                               |  BRIEF rev N+1 ...
-                                               |  VERDICT APPROVE <rev> + APPROVAL (Critic)
-                                               |
-                                               |  nobody else is in this room
-  every agent's brain: Crusoe Managed Inference (ids from scripts/check_crusoe_tools.py, never guessed)
-```
 
-## Sponsor tools in phase 1
+The research room receives supported drug names and a routing ID, not the transcript.
+Grapher receives the approved redacted payload in a separate room, never case membership.
+Closer is deferred.
 
-| Tool | Phase-1 role | Code | State at this commit |
-| --- | --- | --- | --- |
-| Crusoe | inference for Desk, Scribe, Critic | `hallway/common/llm.py` | live function calling and brief generation passed after GLM-only reasoning adjustment (`cfb1268`) |
-| Band | room, roster, messages, events, gate | `hallway/common/room.py`, `hallway/common/runtime.py` | live case read/write, BRIEF, VETO and OWNER_REQUEST observed; awaiting human reply, no approval |
-| Neo4j, Nebius, Brave, OpenRouter, Vultr | none in phase 1 | deferred | see `docs/hackday/integration-ledger.md` |
-| Merge.dev | cut at the pivot | none | not attempted |
-| Plaud, DuploCloud, UserTesting | cut | none | not attempted, need a device or a provisioned tenant |
-
-The ledger in `docs/hackday/integration-ledger.md` tracks verified / mocked / attempted / deferred
-integrations. Passing isolated live calls does not mean the complete demo works.
+| Tool | Implemented role | Evidence / limit |
+| --- | --- | --- |
+| Crusoe | Agent inference (`common/llm.py`) | Live extraction and review observed. |
+| Band | Rooms, roster, gate and events (`common/room.py`, `common/runtime.py`) | Live veto, ownership repair and approved boundary observed. |
+| Brave | Drug facts (`research/brave.py`, `common/research_room.py`) | Three sourced facts in research room `6ebcdfae-eb57-4365-b030-10fe3ccaa9f3`; disabled only in recording preset. |
+| Neo4j | Graph persistence and processing provenance (`graph/neo4j_store.py`) | Real receipt `e02d4a4b-e543-43b1-866e-70358731a12e`; this run did not merge a previous encounter. |
+| Vultr | Compose deployment configuration | Deployment not established by the evidence above. |
+| Other sponsors | See Attempted / cut and the integration ledger | No additional sponsor-use claim from this run. |
 
 ## Run
 
@@ -124,8 +120,8 @@ Create a Band lobby containing Desk and the human operator; copy its ID to `BAND
 `make demo` requires `BAND_HUMAN_API_KEY` to send the authenticated intake request. Alternatively,
 run `doppler run --no-fallback -- .venv/bin/python -m hallway.demo --watch-only` and follow the printed command in Band,
 mentioning Desk. Reply to owner requests mentioning both Scribe and Critic so both can verify the
-human message. The full live `make demo` remains red until lineage and the approved room are
-implemented, even if this phase's case approval succeeds.
+human message. The observer requires matching approval, boundary and real graph evidence within
+its 90-second deadline; the historical completed case exceeded that deadline.
 
 
 ## Fixtures
@@ -154,8 +150,8 @@ Grapher never joins the case room. Closer recruitment is not part of this slice.
 Grapher calls the existing graph store with the case room ID as the stable encounter
 ID. `MOCK_NEO4J=1` remains explicitly mock and posts `MOCK_GRAPH_WRITTEN`. Without
 mock mode, missing `NEO4J_URI` fails closed instead of silently using memory. A mock
-receipt never suppresses a later real write. Actual Neo4j operation still requires
-live verification; tests mock the graph API and Band transport.
+receipt never suppresses a later real write. Case `19ec` verified an actual Neo4j write;
+offline tests separately mock the graph API and Band transport.
 
 The manifest records observed, authenticated Desk intake, Scribe extraction and
 Critic review messages. It is **processing provenance, not delivery/read proof**.
@@ -180,13 +176,15 @@ back into the case; Critic waits for that relay or an explicit failure. The smal
 vocabulary skips unsupported names explicitly. Recruitment resumes from a Band checkpoint.
 
 Brave results count as live evidence only when their own metadata says `mock: false` and
-`source: brave`; missing keys and mock results produce no evidence. Eleven focused offline tests
-cover the boundary and retries. Runtime tool wiring and a live end-to-end research run remain
-pending; this helper alone is not sponsor-demo proof.
+`source: brave`; missing keys and mock results produce no evidence. Focused offline tests
+cover the boundary and retries. Live research room `6ebcdfae-eb57-4365-b030-10fe3ccaa9f3` produced three sourced facts
+in the `19ec` case; mock outputs do not count toward that evidence.
 
 New Scribe publication and Critic review tools record the identifier field categories they processed against the authenticated Desk source message. The boundary verifies these runtime records and emits only field labels and evidence IDs. This is tool/runtime processing evidence, **not human reading or Band delivery measurement**. Legacy or mismatched metadata remains unverified and blocks full phase-2 observer success. Detection is conservative and does not certify complete identification. The graph query is global; current-case proof comes from the matching approved manifest.
 
-Set `ENABLE_DRUG_RESEARCH=1` on Scribe, Critic and Researcher to activate the separate drug-only room. Runtime tool wiring now starts recruitment after Scribe publishes, dispatches research-room messages to the relay, and prevents Critic approval until an authenticated result or explicit unavailability arrives. Mock search facts are never propagated as evidence. Live research verification remains pending.
+Set `ENABLE_DRUG_RESEARCH=1` on Scribe, Critic and Researcher to activate the separate drug-only room. Runtime tool wiring now starts recruitment after Scribe publishes, dispatches research-room messages to the relay, and prevents Critic approval until an authenticated result or explicit unavailability arrives. Mock search facts are never propagated as evidence. Live research was observed in room `6ebcdfae-eb57-4365-b030-10fe3ccaa9f3`. For the current recording preset, set
+`ENABLE_DRUG_RESEARCH=0`; this disables recruitment for that run without removing the integration.
+Keep `ENABLE_APPROVED_ROOM=1` for the approved-room and graph path.
 
 Desk local inbox intake is opt-in with `ENABLE_LOCAL_INBOX=1`, `SAFESCRIBE_INBOX`
 (default `inbox`), and `BAND_CHARGE_HUMAN_ID` set to an actual User in the lobby.
