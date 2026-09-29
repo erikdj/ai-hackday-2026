@@ -130,6 +130,25 @@ say so.
 computing or enclave claim on either vendor's public pages; no BAA offered by either. Do not imply
 otherwise.
 
+**"Why Brave and Similarweb? What do they add here?"** Listen to the handoff: "he's on warfarin",
+then three sentences later "the hospitalist started ciprofloxacin", then "somebody needs to be
+watching that INR." A real, dangerous interaction split across sentences at shift change. Scribe
+hands the Researcher only the drug names, never the patient or the transcript; the Researcher
+fetches one sourced fact per drug from Brave and the Critic accepts enrichment only with a
+verifiable URL. It ran live on this scenario today: case `19ecdb31`, research room `6ebcdfae`,
+three live facts (ciprofloxacin, enoxaparin, warfarin). The point is an agent that helps without
+ever entering the room that holds identity. Similarweb answers a different question: the handoff
+ends with a home-health referral, and referrals name outside organizations. When a transcript names
+one with a website (the doctor-patient fixture: "Sunrise Home Health, sunrise home health dot
+com"), the Researcher asks whether it is a real, established site; today's live answer was
+"unranked, about 890 visits a month", which flags it for a human before the referral goes into the
+plan. The query carries a domain, not a patient. Scenario 2 names no domain, so Similarweb is a
+technical-dive line pointing at the doctor-patient scenario.
+
+**"What about Vultr and Nebius?"** Attempted, not integrated, and not counted. Nebius issued
+object-storage keys rather than an inference key, so the embeddings idea was never built. Vultr has
+a deploy-ready compose file and no host: a last-hour cloud deploy was riskier than the laptop.
+
 **"Is this HIPAA compliant / de-identified?"** No claim. It is a boundary control with an
 identifier gate and an access ledger. Certification is a program, not a hackday.
 
