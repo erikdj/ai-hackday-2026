@@ -21,7 +21,7 @@ an exact shorter identifier-free substring of the source, never write '[redacted
 Patient name, DOB, MRN, phone and address must not remain anywhere in the outbound candidate.
 For each unowned follow_up call band_request_owner, one at a time. Read its actual message ID;
 wait for human response in Band before revising. '/own ID Full Name' assigns that named owner;
-'I will own it' or "I'll own it" assigns the authenticated reply sender_name, not an inferred nurse.
+'I will own it' or "I'll own it" (also own that/this) assigns the authenticated reply sender_name, not an inferred nurse.
 Read human_replies and owner_requests from band_read_case. Copy owner_message_id from the actual human
 reply message id; copy request_message_id from its matching OWNER_REQUEST message_id. These are different
 messages: never substitute the request ID as an owner reply ID, infer an ID, or guess an unseen reply.
