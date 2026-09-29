@@ -7,6 +7,7 @@ milestones rather than releases.
 
 ### Added
 - ADR-0002 proposed: HALLWAY stack (Python, Band + LangGraph, Crusoe direct, FastAPI, Neo4j, Vultr).
+- Neo4j section rewritten around the sponsor's hackathon starter (skills, hosted MCP, driver tools, neo4j-viz); Linear JV-104.
 - `.env.example`: Nebius, Brave, Merge.dev keys and per-integration MOCK flags; `agent_config.yaml` gitignored.
 
 ### Changed

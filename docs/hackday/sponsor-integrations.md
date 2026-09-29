@@ -60,13 +60,34 @@ Status: candidate (JV-100).
 
 ## Neo4j
 
-Status: candidate (JV-101).
+Status: Tier 1 for HALLWAY, cross-case memory (JV-104 under JV-101).
 
-AuraDB Free at https://console.neo4j.io. Download the credentials file immediately (password is
-shown once). Devkit route: register the `mcp-neo4j-cypher` MCP server with a Raw config, provider
-type Other, credential keys `uri`, `username`, `password`, `database` (lowercase), scope with both
-credential and MCP server, attach to the workspace, enable on the ticket. Standalone route: the
-official Python/JS drivers or the same MCP server.
+**Start from the sponsor's hackathon starter:**
+https://github.com/MacklinEngineering/Hackathon_Starter_Repo_Benefits_Of_Neo4j (Apache-2.0,
+Python). Its "agent memory" prompt is HALLWAY's Grapher job.
+
+1. AuraDB Free at https://console.neo4j.io. Copy the instance id. Download the credentials file
+   at once (password is shown once).
+2. Coding agents get the Neo4j Agent Skills (Cypher, modeling, import, vector search, GraphRAG,
+   agent memory, drivers): `npx -y skills add neo4j-contrib/neo4j-skills --skill '*' --agent
+   claude-code -y` (`--agent codex` for Astra).
+3. Coding agents connect through the MCP server Aura hosts per instance, browser sign-in, no
+   password in config: `claude mcp add --transport http neo4j
+   https://<INSTANCE_ID>.mcp-instances.neo4j.io`, then `/mcp`, neo4j, Authenticate.
+4. Product agents (Grapher, dashboard) use the `neo4j` Python driver with `NEO4J_URI`,
+   `NEO4J_USERNAME`, `NEO4J_PASSWORD` from `.env`. Copy the starter's `tools.py` pattern:
+   `get_schema`, `read_cypher` (read-only routing, 20 s timeout, 100-row cap), and a vector
+   index queried with `db.index.vector.queryNodes`. Swap its local `embed()` for Nebius.
+5. Consider the `neo4j-agent-memory` package the starter recommends for save/extract/recall,
+   pointed at our own Aura instance, instead of hand-rolling the memory layer.
+6. Judge-visible: three canned dashboard queries (everyone we met, who else met company X, open
+   commitments by owner) plus a graph drawing with `neo4j-viz` showing two cases linked by a
+   shared person or company. Keep the vector index so the "graph + vector beats vector-only"
+   story the sponsor tells is ours too.
+
+Devkit route (if a DuploCloud ticket needs the graph): register `mcp-neo4j-cypher` as a Raw MCP
+server, provider type Other, credential keys `uri`, `username`, `password`, `database`
+(lowercase), scope with credential and MCP server, attach to the workspace, enable on the ticket.
 
 ## Vultr
 
