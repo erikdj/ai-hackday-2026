@@ -12,6 +12,7 @@ milestones rather than releases.
 
 ### Added
 - `hallway/research/similarweb.py` + tests: Researcher organization-legitimacy fact (spoken domain from the transcript, Similarweb rank + monthly visits with a source URL), fail-closed, `MOCK_SIMILARWEB=1` for offline runs, `SIMILARWEB_API_KEY` from Doppler (JV-113).
+- `hallway/dashboard/mcp.py` + tests: MCP Streamable HTTP endpoint (`POST /mcp`, JSON-RPC, no extra packages) on the judge dashboard exposing `who_saw_identifiers`, `open_followups_by_owner`, `patient_history` so the DuploCloud devkit agent can run the lineage query (JV-98). `hallway/dashboard/README.md` documents registration.
 - `hallway/fixtures/visit_1.{txt,wav}`: doctor/patient follow-up visit with a research trigger (drug change + named referral organization) for the expanded demo (JV-114).
 - `docs/hackday/submission-readme.md`: the hackday submission README for **Safe Scribe by TrustEdge AI** (pitch, two-minute flow, architecture, sponsor delete tests with status checkboxes, run instructions, how it was built). JV-102.
 - Crusoe verified end to end (JV-97); model trio pinned in Doppler. Demo script: exact `@Scribe @Critic I'll own it` line; Doppler-based cold-start checks.

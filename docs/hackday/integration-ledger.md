@@ -17,8 +17,8 @@ Last updated: 2026-09-29 11:50 PDT.
 | Brave | 2 | deferred | | Jaiven (JV-107) | Researcher: one drug interaction/guideline fact with URL; query is the drug name only. |
 | Merge.dev | cut | attempted | | | Cut at the 11:10 pivot: no healthcare fit. |
 | Vultr | 2 | deferred | | Jaiven (JV-108) | Hosts Scribe, Critic, Grapher, Closer, dashboard. Desk + transcription + upload page stay on the laptop so no audio leaves it. |
-| DuploCloud | 2 (after `make demo` green) | deferred | devkit docs vendored | Erik (JV-98) | Self-serve local Docker; register Safe Scribe as a skill/MCP server. |
 | Similarweb | 2 | **verified** | 12:33 PDT live under `doppler run` from Erik's machine: mayoclinic.org → rank 1,304, ~52.3M visits/month (2026-08); sunrisehomehealth.com (the `visit_1` referral org) → unranked, ~890 visits/month. `hallway/research/similarweb.py` + 15 tests (JV-113). | Erik (JV-113) | Researcher organization-legitimacy fact: spoken domain from the transcript (name-anchored, never an unrelated domain), rank + visits + Similarweb page URL; low-traffic and not-found are reported honestly. Wiring into the Researcher's organization trigger is Jaiven's side (JV-107). |
+| DuploCloud | 2 | attempted | devkit cloned to `../devkit`, Docker up; `hallway/dashboard/mcp.py` MCP endpoint + 8 tests (PR JV-98); devkit stack not yet started (needs Erik's work email + verification link) | Erik (JV-98) | Register `http://host.docker.internal:8090/mcp` (transport http) under AI Admin → MCP Servers, Provider + Scope, then a ticket asks "which agents saw identifiers?" and gets Desk, Scribe, Critic from Neo4j. Cut 13:45. |
 | Plaud | cut | attempted | no device | | Pitch says "any transcript". |
 | UserTesting | cut | deferred | | | Needs provisioning. |
 
