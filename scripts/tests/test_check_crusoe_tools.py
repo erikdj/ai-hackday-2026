@@ -49,6 +49,11 @@ def test_classify():
     assert mod._classify(ok) == ("PASS", "")
     assert mod._classify(weak)[0] == "WEAK"
     assert mod._classify(fail)[0] == "FAIL"
+    for arguments in ('{"city": null}', '{"city": 123}', '{"city": []}', '{"city": ""}'):
+        bad = {"tool_calls": [{"function": {"name": "get_weather", "arguments": arguments}}]}
+        assert mod._classify(bad)[0] == "WEAK"
+    paris = {"tool_calls": [{"function": {"name": "get_weather", "arguments": '{"city": "Paris"}'}}]}
+    assert mod._classify(paris) == ("PASS", "")
 
 
 def test_recommend():

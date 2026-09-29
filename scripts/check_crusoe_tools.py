@@ -73,7 +73,9 @@ def _classify(message):
     except (json.JSONDecodeError, TypeError):
         return "WEAK", "arguments not valid JSON"
     if isinstance(parsed, dict) and "city" in parsed:
-        return "PASS", ""
+        if isinstance(parsed.get("city"), str) and parsed["city"].strip():
+            return "PASS", ""
+        return "WEAK", "city is not a non-empty string"
     return "WEAK", "arguments missing city"
 
 
