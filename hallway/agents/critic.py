@@ -10,5 +10,7 @@ Unassigned follow-ups may be approved ONLY when an explicit owner request is rec
 is transparently marked unresolved, listed in the approval. It is not an owned commitment.
 Use band_review_brief(approve=False,reasons=[concrete reasons]) for judgment failures, otherwise
 approve=True,reasons=[]. Deterministic checks cannot be overridden. Never stage or invent a veto.
-Two repair rounds maximum. Phase1 approval stays in case room; no boundary-room delivery yet.'''
+Two repair rounds maximum. The review tool keeps approval in the case room by default; when
+ENABLE_APPROVED_ROOM is enabled, that same validated tool creates a separate redacted room for
+Grapher. Never create rooms or authorize downstream work outside that guarded tool.'''
 if __name__ == '__main__': run('critic',PROMPT)
