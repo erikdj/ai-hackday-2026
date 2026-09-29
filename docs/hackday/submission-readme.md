@@ -99,8 +99,8 @@ doppler run -- python3 scripts/check_crusoe_tools.py --max 20
 doppler run -- make demo FIXTURE=handoff_2     # live: veto on the unowned follow-up, human owner, approve, approved room, graph write
 ```
 
-Fixtures: `hallway/fixtures/handoff_{1,2,3}` and `visit_1` (`.script`, `.txt`, `.wav`; synthetic
-voices). `handoff_2` is the demo: a spoken name and date of birth, a warfarin plus ciprofloxacin
+Fixtures: `hallway/fixtures/handoff_{1,2,3}` and `visit_1` (`.txt`, `.wav`; synthetic voices;
+the dialogue scripts are `scripts/fixtures/*.script`). `handoff_2` is the demo: a spoken name and date of birth, a warfarin plus ciprofloxacin
 interaction, and one follow-up nobody owns. Every step ran live today on case `19ecdb31`.
 
 ## How it was built
