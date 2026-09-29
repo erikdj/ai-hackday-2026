@@ -23,7 +23,7 @@ this file is the offline summary. Update it in every PR that changes the plan.
 
 - [ ] JV-105 Phase 1 spine: Desk + Scribe + Critic on Crusoe in a Band room, both vetoes (cut line 11:50)
 - [ ] JV-106 Phase 2 memory + lineage: Grapher to Neo4j with ACCESSED edges, .wav to inbox, compose (cut line 12:45)
-- [ ] JV-107 Phase 3 boundary room under Erik's second Band account + Researcher on drug names (13:30)
+- [ ] JV-107 Phase 3 boundary room under Erik's second Band account + Researcher on drug names (13:30). Drug-only helper and 11 offline tests implemented; runtime integration and live research proof pending.
 - [ ] JV-108 Phase 4 dashboard, Vultr deploy, harden, `make demo` (feature freeze 14:00, code freeze 14:40)
 
 ## Candidates (only if the idea needs them)
@@ -34,3 +34,5 @@ this file is the offline summary. Update it in every PR that changes the plan.
 ## Done
 
 - [x] JV-94 Project skeleton: CLAUDE.md rules, docs, PR template, Linear project
+
+- JV-106 implementation ready for review: live approved-room/Neo4j verification, full delivery-evidence lineage persistence, and Closer admission remain to validate/complete.

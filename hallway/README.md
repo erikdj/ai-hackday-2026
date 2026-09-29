@@ -129,3 +129,49 @@ Agents read `fixtures/<name>.txt` by name; `handoff_2` is the default.
 - Plaud, DuploCloud, UserTesting: not attempted; device or provisioned tenant required.
 - Emit.THOUGHTS: not supported by the Band LangGraph adapter (`SUPPORTED_EMIT` is tool calls and
   usage); explicit `thought` events are posted through `band_send_event` at each protocol step instead.
+
+
+### Opt-in approved room and Grapher (JV-106)
+
+Set `ENABLE_APPROVED_ROOM=1` on Critic and configure the Grapher peer ID; run the
+Grapher process separately. Default remains the case-only phase 1 behavior. After
+approval, Critic creates a separate `Safe Scribe approved <id>` room containing
+Critic, Grapher and the initiating human. Only the redacted approved brief crosses;
+Grapher never joins the case room. Closer recruitment is not part of this slice.
+
+Grapher calls the existing graph store with the case room ID as the stable encounter
+ID. `MOCK_NEO4J=1` remains explicitly mock and posts `MOCK_GRAPH_WRITTEN`. Without
+mock mode, missing `NEO4J_URI` fails closed instead of silently using memory. A mock
+receipt never suppresses a later real write. Actual Neo4j operation still requires
+live verification; tests mock the graph API and Band transport.
+
+The manifest records observed, authenticated Desk intake, Scribe extraction and
+Critic review messages. It is **processing provenance, not delivery/read proof**.
+No identifier-field access edges are invented; the real `who_saw_identifiers()`
+result may be empty and is labeled as a global query across all encounters. The
+existing graph store retains agent/field/purpose/timestamp but not source message
+IDs; those remain in the Band manifest. Runtime-generated ISO processing timestamps
+are appended after identifier checks to avoid confusing transport dates with DOBs.
+
+Band checkpoints resume room delivery on retry and graph writes use stable MERGE
+keys. A crash immediately after room creation can leave an empty orphan room before
+its checkpoint exists. A graph call timeout emits no success receipt; its worker
+thread may still complete, so a later retry can safely rewrite the same encounter.
+
+The live demo observer now waits for an authenticated boundary checkpoint, matching Critic approval, and a real `GRAPH_WRITTEN` receipt with the actual lineage query result. Mock graph receipts never pass. Success is labeled **phase 2 verified**, not completion of Researcher, Closer, or event submission requirements.
+## Drug-only research helper (JV-107)
+
+`hallway/common/research_room.py` recruits Researcher into a separate Band room only for
+supported, transcript-backed medication names. The request carries those names and an opaque
+routing UUID, never the transcript or patient identity. Scribe validates and relays source URLs
+back into the case; Critic waits for that relay or an explicit failure. The small medication
+vocabulary skips unsupported names explicitly. Recruitment resumes from a Band checkpoint.
+
+Brave results count as live evidence only when their own metadata says `mock: false` and
+`source: brave`; missing keys and mock results produce no evidence. Eleven focused offline tests
+cover the boundary and retries. Runtime tool wiring and a live end-to-end research run remain
+pending; this helper alone is not sponsor-demo proof.
+
+The current processing-only manifest does **not** verify identifier-field access. Graph writes and their actual query results remain usable, but the live observer explicitly reports lineage unverified and keeps full phase 2 incomplete. No empty/global query is promoted to proof of access.
+
+Set `ENABLE_DRUG_RESEARCH=1` on Scribe, Critic and Researcher to activate the separate drug-only room. Runtime tool wiring now starts recruitment after Scribe publishes, dispatches research-room messages to the relay, and prevents Critic approval until an authenticated result or explicit unavailability arrives. Mock search facts are never propagated as evidence. Live research verification remains pending.
