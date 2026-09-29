@@ -44,7 +44,7 @@ laptop                              Band (coordination)                 Crusoe (
 ┌──────────────────────┐   text    ┌──────────────────────────┐        ┌──────────────────┐
 │ upload page          │ ────────► │ case room                │ ◄────► │ V4-Flash (Scribe)│
 │ faster-whisper (local)│          │   Desk → Scribe → Critic │        │ Qwen3.8  (Desk)  │
-│ pseudo_id salt (local)│          │   human: "I'll own it"   │        │ DeepSeek (Critic)│
+│ pseudo_id salt (local)│          │   human: "I'll own it"   │        │ Qwen3.8  (Critic)│
 └──────────────────────┘           │   VETO / APPROVE rev N   │        └──────────────────┘
                                    └────────────┬─────────────┘
                                    redacted brief + access manifest only
