@@ -18,7 +18,7 @@ Last updated: 2026-09-29 11:50 PDT.
 | Merge.dev | cut | attempted | | | Cut at the 11:10 pivot: no healthcare fit. |
 | Vultr | 2 | deferred | | Jaiven (JV-108) | Hosts Scribe, Critic, Grapher, Closer, dashboard. Desk + transcription + upload page stay on the laptop so no audio leaves it. |
 | DuploCloud | 2 (after `make demo` green) | deferred | devkit docs vendored | Erik (JV-98) | Self-serve local Docker; register Safe Scribe as a skill/MCP server. |
-| Similarweb | only if a key is pinned in Discord | deferred | | | Enterprise key; 20-minute cap if one appears. |
+| Similarweb | 2 | attempted | `hallway/research/similarweb.py` + 7 tests (PR JV-113); live call not yet run against a key | Erik (JV-113) | Researcher organization-legitimacy fact for the named referral org in `visit_1` ("sunrise home health dot com"): rank, monthly visits, Similarweb page URL. Flip to verified once `SIMILARWEB_API_KEY` is in Doppler and one live call returns. Cut 13:45. |
 | Plaud | cut | attempted | no device | | Pitch says "any transcript". |
 | UserTesting | cut | deferred | | | Needs provisioning. |
 

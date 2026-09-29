@@ -4,6 +4,7 @@ Mirror of the Linear project **AI Hackday 2026** (`P-JV-47`). Linear is the sour
 this file is the offline summary. Update it in every PR that changes the plan.
 
 ## Now
+- [ ] JV-113 Similarweb: wire `fact_from_transcript` into the Researcher's organization trigger (Jaiven's side), run one live call with the Doppler key, flip ledger to verified (cut 13:45)
 
 - [x] JV-95 Idea: Safe Scribe (brief in docs/hackday/safe-scribe-build-brief.md)
 - [x] JV-96 Tech stack decision, ADR-0002 accepted (PR #3)
