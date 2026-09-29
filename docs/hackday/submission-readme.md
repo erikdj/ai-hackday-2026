@@ -95,7 +95,7 @@ Full compliance posture, vendor terms and gaps: `docs/compliance/hipaa.md`. Pitc
 
 ```bash
 doppler setup                                  # project ai-hackday-2026, config dev
-doppler run -- python3 scripts/check_crusoe_tools.py --max 20
+doppler run -- .venv/bin/python scripts/check_crusoe_tools.py --max 20
 doppler run -- make demo FIXTURE=handoff_2     # live: veto on the unowned follow-up, human owner, approve, approved room, graph write
 ```
 

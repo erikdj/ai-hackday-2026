@@ -10,7 +10,7 @@ External agent platforms call lineage tools over Streamable HTTP (POST only; no 
 - From a Docker container on the same machine: `http://host.docker.internal:8090/mcp`
 - Transport: `http` (Streamable HTTP, POST only)
 - Health: `GET /mcp/health`
-- Tools: `who_saw_identifiers`, `open_followups_by_owner`, `patient_history`
+- Tools: `who_saw_identifiers`, `open_followups_by_owner`, `compliance_narrative`, `patient_history`
 
 ```bash
 curl -s -X POST http://127.0.0.1:8090/mcp \
