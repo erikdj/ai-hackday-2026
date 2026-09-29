@@ -50,6 +50,13 @@ def transcribe(path: str | Path, model_size: str | None = None) -> dict:
     }
 
 
+def _atomic_write(target: Path, text: str) -> None:
+    """Write to a temp file then rename, so an inbox watcher never reads a partial file."""
+    tmp = target.with_name(target.name + ".part")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, target)
+
+
 def to_inbox(path: str | Path, inbox_dir: str | Path = "inbox", model_size: str | None = None) -> Path:
     """Transcribe and drop <stem>.txt into the inbox Desk watches. Never copies the audio."""
     audio = Path(path)
@@ -58,7 +65,7 @@ def to_inbox(path: str | Path, inbox_dir: str | Path = "inbox", model_size: str 
     inbox = Path(inbox_dir)
     inbox.mkdir(parents=True, exist_ok=True)
     target = inbox / f"{stem}.txt"
-    target.write_text(result["transcript"].strip() + "\n", encoding="utf-8")
+    _atomic_write(target, result["transcript"].strip() + "\n")
     log.info("wrote %s (%d chars)", target, len(result["transcript"]))
     return target
 

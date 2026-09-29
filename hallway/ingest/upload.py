@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from hallway.ingest.transcribe import transcribe
+from hallway.ingest.transcribe import _atomic_write, transcribe
 
 INBOX = Path(os.getenv("SAFESCRIBE_INBOX", "inbox"))
 MAX_BYTES = 25 * 1024 * 1024
@@ -62,7 +62,7 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
         text = data.decode("utf-8", errors="replace")
     if not text.strip():
         raise HTTPException(status_code=422, detail="nothing transcribed")
-    target.write_text(text.strip() + "\n", encoding="utf-8")
+    _atomic_write(target, text.strip() + "\n")
     return JSONResponse({"inbox_file": str(target), "chars": len(text.strip()), **meta})
 
 
