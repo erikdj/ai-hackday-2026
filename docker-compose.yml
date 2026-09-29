@@ -12,6 +12,8 @@ x-environment: &agent-environment
   CRUSOE_MODEL_STRONG_FALLBACK: "${CRUSOE_MODEL_STRONG_FALLBACK:-}"
   CRUSOE_MODEL_CRITIC_FALLBACK: "${CRUSOE_MODEL_CRITIC_FALLBACK:-}"
   CRUSOE_DISABLE_THINKING_MODELS: "${CRUSOE_DISABLE_THINKING_MODELS:-}"
+  ENABLE_APPROVED_ROOM: "${ENABLE_APPROVED_ROOM:-0}"
+  ENABLE_DRUG_RESEARCH: "${ENABLE_DRUG_RESEARCH:-0}"
   BAND_DESK_AGENT_ID: "${BAND_DESK_AGENT_ID:-}"
   BAND_SCRIBE_AGENT_ID: "${BAND_SCRIBE_AGENT_ID:-}"
   BAND_RESEARCHER_AGENT_ID: "${BAND_RESEARCHER_AGENT_ID:-}"
@@ -35,11 +37,13 @@ services:
       BAND_SCRIBE_API_KEY: "${BAND_SCRIBE_API_KEY:-}"
   researcher:
     <<: *agent
-    profiles: ["deferred"]
+    profiles: ["phase2"]
     command: ["python", "-m", "hallway.agents.researcher"]
     environment:
       <<: *agent-environment
       BAND_RESEARCHER_API_KEY: "${BAND_RESEARCHER_API_KEY:-}"
+      BRAVE_API_KEY: "${BRAVE_API_KEY:-}"
+      MOCK_BRAVE: "${MOCK_BRAVE:-0}"
   critic:
     <<: *agent
     command: ["python", "-m", "hallway.agents.critic"]
@@ -48,11 +52,16 @@ services:
       BAND_CRITIC_API_KEY: "${BAND_CRITIC_API_KEY:-}"
   grapher:
     <<: *agent
-    profiles: ["deferred"]
+    profiles: ["phase2"]
     command: ["python", "-m", "hallway.agents.grapher"]
     environment:
       <<: *agent-environment
       BAND_GRAPHER_API_KEY: "${BAND_GRAPHER_API_KEY:-}"
+      NEO4J_URI: "${NEO4J_URI:-}"
+      NEO4J_USERNAME: "${NEO4J_USERNAME:-}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-}"
+      NEO4J_DATABASE: "${NEO4J_DATABASE:-}"
+      MOCK_NEO4J: "${MOCK_NEO4J:-0}"
   closer:
     <<: *agent
     profiles: ["deferred"]
