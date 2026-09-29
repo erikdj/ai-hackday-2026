@@ -1,0 +1,42 @@
+# Secrets and local config — never commit
+.env
+.env.*
+!.env.example
+
+# Build artifacts and dependencies (stack-agnostic; extend in ADR-0002)
+node_modules/
+dist/
+build/
+bin/
+obj/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.angular/
+*.tgz
+*.zip
+**/backend/sdk-packages/
+
+# DuploCloud devkit vendored sources (fetched, not authored) if the devkit is adopted here
+extensions/terraform/
+
+# Local scratch
+temp/
+tmp/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+.worktrees/
+
+# Agent session state that should not be shared
+.claude/settings.local.json
+.codex/
+
+# Local plugin state
+.omc/
