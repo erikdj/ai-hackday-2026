@@ -39,8 +39,10 @@ accepts.
    never the transcript. Grapher writes the pseudonymous brief to **Neo4j** together with an access
    manifest: `(Agent)-[:ACCESSED]->(Field)` edges saying which agent touched which identifier field.
 7. The compliance question is answered live from the graph: *which agents saw identifiers?*
-   **Desk, Scribe, Critic.** Nothing downstream. The same question is exposed as an MCP tool
-   registered in the **DuploCloud** studio, so another agent can ask it under human approval.
+   **Desk, Scribe, Critic.** Nothing downstream. A Crusoe model turns that lineage into the
+   three-sentence statement a privacy officer reads, from agent names, field names and counts only.
+   Both are exposed as MCP tools registered in the **DuploCloud** studio, so another agent can ask
+   them under human approval.
 
 Every step above ran live today on synthetic case `19ecdb31` (Band room ids, Aura rows and the
 studio tool result are recorded on Linear JV-116, JV-106, JV-98).
@@ -49,10 +51,10 @@ studio tool result are recorded on Linear JV-116, JV-106, JV-98).
 
 | Tool | Job in Safe Scribe | Why this tool | How we know it works |
 | --- | --- | --- | --- |
-| **Crusoe** Managed Inference | All agent inference: Scribe on `zai-org/GLM-5.3`, Desk and Critic on `Qwen/Qwen3.8-27B` | A dedicated AI-compute provider a hospital can contract with directly, instead of a consumer AI API by default; two model families from one catalog; if it is unavailable the case pauses, it never routes elsewhere | 13-model tool-calling probe, two live runs that changed the pins (see the ledger), every live case today |
+| **Crusoe** Managed Inference | All agent inference, plus the compliance narrative | Two model families from one catalog; a provider a hospital can contract with directly; if it is unavailable the case pauses, it never routes elsewhere | 13-model tool-calling probe, two live runs that changed the pins, every live case today, narrative live from Aura in 3.6 s |
 | **Band** | The rooms and the door policy: case room, approved room, roster checks, vetoes, the human's reply as a message | Room membership is a boundary we can enforce and show, not a promise; the human is a first-class participant | Live cases `a9806e53`, `84cfeb33`, `19ecdb31` |
 | **Neo4j** Aura | Pseudonymous patient memory across encounters and the access-lineage graph | The audit question is a graph question: agents, fields, and the edges between them | Live Grapher write on Aura; `who_saw_identifiers` = Critic, Desk, Scribe |
-| **DuploCloud** | The lineage answer exposed as an MCP tool in the studio, called under human approval | Compliance tooling should be reachable by other agents, with a human approving each call | MCP server, provider, scope and ticket registered via the studio admin API; tool call returned the live answer |
+| **DuploCloud** | The lineage answer and the compliance narrative exposed as MCP tools in the studio, called under human approval | Compliance tooling should be reachable by other agents, with a human approving each call | MCP server, provider, scope and ticket registered via the studio admin API; tool call returned the live answer |
 | **Brave Search** | One sourced fact per drug named in the handoff (warfarin, ciprofloxacin, enoxaparin), for the Critic to verify by URL | The interaction in the handoff is split across sentences; public evidence gets attached to the brief without the research agent ever seeing the patient | Live facts in research room `6ebcdfae` on scenario 2 |
 | **Similarweb** | Legitimacy fact for a referral organization spoken in a visit | Referrals name outside organizations; a referral to a moribund or fake provider is a safety and fraud vector | Live: `sunrisehomehealth.com` unranked, ~890 visits/month, flagged for a human |
 | faster-whisper (open source, not a sponsor) | Transcription on the laptop | The audio never moves | Verified on `handoff_2.wav` |
@@ -62,28 +64,43 @@ inference) and **Vultr** (compose file ready, no host; a last-hour deploy was ri
 laptop). **OpenRouter** and **Merge.dev** were not used. **xAI** text-to-speech built the synthetic
 fixtures and is development tooling only.
 
-## The elephant in the room: three agents on two vendors see patient data
+## Where the patient data goes today, and what changes for a real deployment
 
-We do not claim zero exposure. Three named agents in one room see the transcript, and they run on
-Crusoe inside a Band room. Today that is acceptable for exactly one reason: **every patient is
-synthetic.** Here is what each affected vendor's public terms say, as read on 2026-09-29, and what
-that means for a real deployment. The full analysis is in
-[docs/compliance/hipaa.md](docs/compliance/hipaa.md).
+Three agents in one room (Desk, Scribe, Critic) see the transcript, and they run on Crusoe inside a
+Band room. Everything downstream (Grapher, Researcher, the dashboard, the DuploCloud tool) receives
+only a pseudonymous brief or lineage metadata, never the transcript. Today this is acceptable for
+one reason: **every patient is synthetic.** Crusoe's self-serve terms exclude HIPAA-regulated data,
+Band's terms are silent on it, and no business associate agreement is in place with anyone. Nothing
+runs in an enclave.
 
-| Vendor | Sees | Public terms today | What production needs |
-| --- | --- | --- | --- |
-| Crusoe Managed Inference | transcript, brief | Inputs and outputs are not stored to disk and not used for training without opt-in; ISO 27001 and 42001. The same terms **prohibit** processing "health information subject to United States HIPAA regulations"; no business associate agreement (BAA); no enclave or confidential-computing claim | A negotiated dedicated deployment with a BAA, or open models on GPUs the hospital controls; the code already treats the endpoint as swappable |
-| Band | room messages: transcript, brief, vetoes, the nurse's reply | Terms of service and privacy policy (July 2026) are silent on HIPAA, BAA, encryption and hosting location | A BAA or an enterprise/self-hosted deployment; otherwise the room layer must be replaced by a hospital-controlled coordination service |
-| Neo4j Aura | pseudonymous brief and lineage only, never the transcript | Neo4j's AuraDB FAQ says a BAA can be signed with Neo4j for PHI; it does not list eligible tiers. The AuraDB Free instance in this demo has no BAA | Aura under a signed BAA, or self-managed Neo4j inside the hospital's network |
-| DuploCloud | the lineage answer only (agents and field names, no patient data) | Vendor pages: the platform automates SOC 2 and HIPAA controls for customer infrastructure. The devkit trial we run carries no compliance attestation and is licensed for local development only | Run the studio through DuploCloud's platform; see "What comes next" |
-| Brave, Similarweb | drug names; one domain name | Queries carry no patient data by construction (bounded drug vocabulary; name-anchored domain) | No change; keep the bounded-query rule |
-| faster-whisper, xAI | audio on the laptop; scripted synthetic text | Local; synthetic only | Keep transcription local; never send real audio to a TTS or STT API |
+What we claim is the architecture: **chosen** (the hospital picks where the room and the models
+run; the endpoint is one configuration value), **minimized** (audio never moves; exactly three agents
+see identifiers; room membership is the boundary), **provable** (the graph records which agent
+touched which field, and a Crusoe model turns that into the sentence a privacy officer reads). For
+a real deployment the PHI-side pair moves to a contracted Crusoe deployment or hospital GPUs; the
+downstream agents stay exactly where they are. Vendor terms with sources, the gaps, and the
+production checklist: [docs/compliance/hipaa.md](docs/compliance/hipaa.md). Words we do not use:
+"HIPAA compliant", "de-identified", "enclave".
 
-The architecture argument we do make: **chosen** (the hospital picks where the room and the models
-run; the compose file runs the agents on any host it controls), **minimized** (audio never moves,
-exactly three agents see identifiers, nothing downstream sees the transcript, room membership is the
-boundary), **provable** (the graph records which agent touched which field). The vendor-contract part
-is procurement, and we say so. Words we do not use: "HIPAA compliant", "de-identified", "enclave".
+## Crusoe: what it does today and where it grows
+
+Crusoe is the only inference provider in the code; if it is unavailable, the case pauses.
+
+| Today, live | On Crusoe | Sees PHI? |
+| --- | --- | --- |
+| Scribe extracts the quoted brief | `zai-org/GLM-5.3`, low reasoning | yes (transcript) |
+| Desk opens the case, Critic reviews and vetoes | `Qwen/Qwen3.8-27B`, thinking off, a second model family by rule | yes (transcript) |
+| Grapher writes the pseudonymous graph through tool calls | Qwen | no |
+| Researcher turns drug names into sourced facts | Qwen | no |
+| **Compliance narrative**: a three-sentence privacy-officer statement written from lineage metadata only, shown on the dashboard and served as a DuploCloud tool, with the exact payload sent | Qwen | no |
+
+The split matters: the PHI-side work is two agents and one contract away from a dedicated Crusoe
+deployment or hospital GPUs; everything below the line runs on Crusoe serverless under today's terms
+and is where a scaled system spends most of its inference. Next on Crusoe, in order: Closer drafting
+the discharge follow-up from the redacted brief in the approved room; "ask the graph" natural
+language over the pseudonymous graph for the dashboard; per-shift compliance digests across
+encounters; a Crusoe-served embedding model, when the catalog has one, for suggesting prior
+encounters a human confirms; and the PHI-side pair on a contracted dedicated endpoint.
 
 ## What is here
 
@@ -100,7 +117,7 @@ hallway/                           the product (directory name predates the prod
   agents/                          desk, scribe, critic, grapher, researcher (closer: stub)
   common/                          Band room protocol, brief schema and identifier gate, Crusoe client, runtime, research room
   graph/                           in-memory and Neo4j stores, schema.cypher
-  dashboard/                       judge dashboard, lineage queries, MCP endpoint for DuploCloud
+  dashboard/                       judge dashboard, lineage queries, Crusoe compliance narrative, MCP endpoint for DuploCloud
   ingest/                          local upload page, faster-whisper transcription, Desk inbox watcher
   research/                        Brave and Similarweb facts
   fixtures/                        four synthetic scenarios: script, transcript, WAV
@@ -110,7 +127,7 @@ docker-compose.yml                 role-scoped agent deployment (phase-2 profile
 backlog.md / changelog.md          what is next / what shipped
 ```
 
-Test suite at the code freeze: 135 unittest (2 live tests skipped) plus 39 pytest, all green.
+Test suite at the code freeze: 135 unittest (2 live tests skipped) plus 44 pytest, all green.
 
 ## Run it
 
@@ -153,6 +170,6 @@ The agents run as Band Remote Agents, one process per role, under `doppler run` 
 Two humans and three agent sessions in six hours. Every task a Linear issue, every change a pull
 request, every PR reviewed locally by an independent AI reviewer (Astra via Codex CLI) before
 merge, and a third Claude session acting as overseer: holding the clock, merging reviewed PRs, and
-challenging any claim not backed by a live run. Doppler is the single secrets store. Forty-seven
+challenging any claim not backed by a live run. Doppler is the single secrets store. Forty-nine
 PRs merged in the day. The integration ledger says verified, mocked, attempted or not used per tool,
 with the evidence line for each. See [docs/agent-instructions.md](docs/agent-instructions.md).
