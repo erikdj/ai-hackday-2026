@@ -6,7 +6,7 @@ import re
 import os
 from datetime import datetime, timezone
 from band.runtime.tools.agent import AgentTools
-from hallway.common.brief import Brief, digest, normalize, validate_brief, identifier_fields
+from hallway.common.brief import Brief, digest, identifier_fields, normalize, validate_brief
 
 PREFIX = 'SAFESCRIBE/1\n'
 LEGACY_PREFIX = 'HANDOFF/1\n'
@@ -100,10 +100,10 @@ def case_state(records: list[dict]) -> dict:
 
 
 _ITEM_IDS = re.compile(r'fu-[a-z0-9-]+|fu_[a-z0-9_]+|#\d+')
-_UNSAFE_QUOTE = re.compile(
-    r'date of birth|\bmedical record\b|\bmrn\b|\bdob\b'
-    r'|\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',
-    re.IGNORECASE)
+_MARKER = re.compile(r'SAFESCRIBE/1|HANDOFF/1', re.IGNORECASE)
+_NAME_PAIR = re.compile(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b')
+_LONG_DIGITS = re.compile(r'\d{7,}')
+_GIVEN_NAME = re.compile(r'[A-Z][a-z]+')
 _TITLES = {
     'CASE_CREATED': 'Case created', 'BOUNDARY_CREATED': 'Boundary created',
     'BOUNDARY_SENT': 'Boundary sent', 'GRAPH_WRITTEN': 'Graph written',
@@ -126,18 +126,41 @@ def _as_list(value) -> list:
 
 
 def _plain(value) -> str:
-    return value.strip() if isinstance(value, str) else ''
-
-
-def _safe_quote(value) -> str:
-    quote = _plain(value)
-    if not quote or _UNSAFE_QUOTE.search(quote):
+    if not isinstance(value, str):
         return ''
-    return quote
+    return ' '.join(value.split())
+
+
+def _safe_text(value, limit=120) -> str:
+    """Collapse model text and drop marker lines or identifier-shaped values."""
+    if value is None:
+        return ''
+    text = ' '.join(str(value).split())
+    if not text:
+        return ''
+    if _MARKER.search(text):
+        return '[withheld]'
+    if identifier_fields(text):
+        return '[withheld: identifier]'
+    # A capitalised pair at the very start is still a name ("Taylor Example takes…").
+    if _NAME_PAIR.search(text) or '@' in text or _LONG_DIGITS.search(text):
+        return '[withheld: identifier]'
+    if len(text) > limit:
+        return text[:limit] + '…'
+    return text
+
+
+def _owner_display(owner: str) -> str:
+    parts = _plain(owner).split()
+    if len(parts) >= 2 and _GIVEN_NAME.fullmatch(parts[0]) and _GIVEN_NAME.fullmatch(parts[1]):
+        shown = f'{parts[0]} {parts[1][0]}.'
+    else:
+        shown = ' '.join(parts)
+    return _safe_text(shown)
 
 
 def _joined_texts(items: list) -> str:
-    texts = [_plain(item.get('text')) for item in items if isinstance(item, dict)]
+    texts = [_safe_text(item.get('text')) for item in items if isinstance(item, dict)]
     return ', '.join(text for text in texts if text)
 
 
@@ -179,8 +202,8 @@ def _brief_lines(payload: dict, revision: str) -> list[str]:
     lines.append(f'- meds ({len(meds)}):')
     for item in meds:
         item = _as_dict(item)
-        quote = _safe_quote(item.get('quote'))
-        lines.append(f'- {_plain(item.get("text"))}' + (f' — _{quote}_' if quote else ''))
+        quote = _safe_text(item.get('quote'))
+        lines.append(f'- {_safe_text(item.get("text"))}' + (f' — _{quote}_' if quote else ''))
         lines[-1] = '  ' + lines[-1]
     allergies = _as_list(brief.get('allergies'))
     pending = _as_list(brief.get('pending_results'))
@@ -194,10 +217,10 @@ def _brief_lines(payload: dict, revision: str) -> list[str]:
         item = _as_dict(item)
         owner = _plain(item.get('owner'))
         unnamed = not owner or item.get('status') == 'unresolved'
-        tail = '**no owner**' if unnamed else f'owner: {owner}'
-        quote = _safe_quote(item.get('quote'))
+        tail = '**no owner**' if unnamed else f'owner: {_owner_display(owner)}'
+        quote = _safe_text(item.get('quote'))
         quote_bit = f' — _{quote}_' if quote else ''
-        lines.append(f'  - {_plain(item.get("text"))}{quote_bit} — {tail}')
+        lines.append(f'  - {_safe_text(item.get("text"))}{quote_bit} — {tail}')
     from hallway.common.brief import Patient
     model_keys = [key for key in ('name', 'dob', 'mrn') if key in Patient.model_fields]
     present = [key for key in model_keys if _plain(patient.get(key)) or patient.get(key) not in (None, '', [], {})]
@@ -221,7 +244,7 @@ def _verdict_lines(payload: dict, revision: str) -> list[str]:
 
 def _owner_lines(payload: dict) -> list[str]:
     follow_up = _as_dict(payload.get('follow_up'))
-    text = _plain(payload.get('text')) or _plain(follow_up.get('text')) or _plain(payload.get('follow_up_id')) or _plain(follow_up.get('id'))
+    text = _safe_text(payload.get('text')) or _safe_text(follow_up.get('text')) or _plain(payload.get('follow_up_id')) or _plain(follow_up.get('id'))
     return ['### Who owns this?', f'- {text}',
             "Reply in this room mentioning Scribe and Critic with: **I'll own it**"]
 
