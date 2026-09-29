@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- Root README rewritten as the judges' pitch and repo directory (what, why each tool, the exposure/BAA table per vendor, what is built, what comes next); agent instructions moved to `docs/agent-instructions.md`; `docs/README.md` table of contents; new `docs/compliance/hipaa.md` with the vendor-terms readout as read on 2026-09-29 (overseer, Erik's ask).
 - Demo script: 'Set the scene' opening and tool-by-tool proof walkthrough (Erik's ask); ledger: Neo4j live Grapher write on Aura and DuploCloud studio call verified (JV-102, JV-98, JV-106).
 - Judge Q&A and README careful-wording updated with what Crusoe's and Band's public terms actually say about HIPAA/BAA (JV-102, overseer, sourced 2026-09-29).
 - Feature-freeze docs sweep (14:00 PDT, overseer): ledger, README tool table, DuploCloud section with WSL2 notes, demo script (audio clip in beat 1, judge Q&A with the plain-language case and the Band/Crusoe exposure answer, sponsor say/do-not-say) all match what was observed live today.

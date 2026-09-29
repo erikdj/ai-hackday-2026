@@ -76,6 +76,8 @@ integration.
 
 ## What we are careful to say
 
+Full compliance posture, vendor terms and gaps: `docs/compliance/hipaa.md`. Pitch and directory: the root `README.md`.
+
 - Every patient in the demo is synthetic. Names, dates of birth, record numbers, and phone
   numbers are invented.
 - The identifier gate is a programmatic check plus model judgment on the outbound brief. It is
