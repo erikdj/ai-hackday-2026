@@ -16,6 +16,8 @@ cd ai-hackday-2026 && doppler setup                    # pick ai-hackday-2026 / 
 
 ```bash
 doppler run -- python3 scripts/check_crusoe_tools.py --max 20
+doppler run -- python3 scripts/make_fixtures.py handoff_2
+# once PR #8 lands (Makefile, docker-compose.yml):
 doppler run -- make demo
 doppler run -- docker compose up
 ```
@@ -32,8 +34,15 @@ Band's per-agent `agent_config.yaml` is also gitignored; keep the six agent keys
 
 ## Vultr VM
 
-Install the CLI, `doppler login` with a service token scoped to `dev` (Dashboard > Access >
-Service Tokens), then `doppler run -- docker compose up -d`. Never bake secrets into the image.
+Install the CLI. Do not `doppler login` on the VM (that is a browser login for a person). Create a
+service token scoped to `dev` (Dashboard > Access > Service Tokens) and pass it in the environment:
+
+```bash
+export DOPPLER_TOKEN=dp.st....            # service token, dev config
+doppler run -- docker compose up -d       # once PR #8 lands the compose file
+```
+
+Never bake secrets into the image.
 
 ## Rotation
 
