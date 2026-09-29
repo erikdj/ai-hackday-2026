@@ -37,17 +37,17 @@ Six Band agents, each its own Python process with its own Band agent_id + api_ke
 | Agent | Crusoe model | Job | Band tools |
 |---|---|---|---|
 | Desk | fast | Trip-wire. Watches inbox/ for a new .txt/.md/.wav (a tiny FastAPI upload page writes there). Transcribes .wav locally with faster-whisper and logs "0 bytes of audio left this machine". Creates case-<slug> room, adds Scribe + Critic, posts the transcript, @Scribe extract. | band_create_chatroom, band_add_participant, band_send_message |
-| Scribe | strong | Extracts HANDOFF brief (JSON): patient (pseudonymous id only), meds, allergies, pending results, findings, follow-ups; every item carries a verbatim quote. If a drug is named → band_lookup_peers → band_add_participant(Researcher) → @Researcher enrich. Then @Critic review. On VETO, redacts or assigns and posts a new revision number. | band_lookup_peers, band_add_participant, band_send_message, band_send_event |
-| Researcher | strong | Recruited at runtime only when a drug is named. Brave Search for one sourced interaction/guideline fact. Posts ENRICHMENT with URL. @Critic. Never sees identifiers (Scribe passes drug names only). | band_send_message, band_send_event |
-| Critic | different family from Scribe | The veto. Programmatic + judgment: every quote must be a normalized substring of the transcript; every follow-up needs an owner; every enrichment fact needs a URL; **no direct identifier in the outbound brief** (identifier list pulled from the transcript + DOB/MRN/phone regex). Posts VERDICT: APPROVE <revision> or VERDICT: VETO + numbered reasons. VETO → @Scribe fix (max 2 rounds, then escalate to the human in the room). APPROVE → band_add_participant(Grapher), then posts the redacted brief to the boundary room where Closer lives. | band_add_participant, band_send_message, band_send_event |
+| Scribe | strong | Extracts HANDOFF brief (JSON): patient (pseudonymous id only), meds, allergies, pending results, findings, follow-ups; every item carries a verbatim quote. If a drug is named → band_create_chatroom(case-<slug>-research) → band_lookup_peers → band_add_participant(Researcher, research room) → posts **drug names only** there → waits for the fact or an explicit failure → relays the fact into the case room. Then @Critic review. On VETO: redacts identifiers itself; for an unowned follow-up it @mentions the human charge nurse in the room and records the owner they name, with the room message as provenance. Never invents an owner. Posts a new revision number each time. | band_create_chatroom, band_lookup_peers, band_add_participant, band_send_message, band_send_event |
+| Researcher | strong | Recruited at runtime only when a drug is named, into the **research room**, never the case room. Sees drug names only. Brave Search for one sourced interaction/guideline fact. Posts ENRICHMENT with URL in the research room; Scribe relays it. Lineage: Researcher has no ACCESSED edge to any identifier field, and the query proves it. | band_send_message, band_send_event |
+| Critic | different family from Scribe | The veto. Programmatic + judgment: every quote must be a normalized substring of the transcript; every follow-up needs an owner; every enrichment fact needs a URL; **no direct identifier in the outbound brief** (identifier list pulled from the transcript + DOB/MRN/phone regex). Posts VERDICT: APPROVE <revision> or VERDICT: VETO + numbered reasons. VETO → @Scribe fix (max 2 rounds, then escalate to the human in the room). An unowned follow-up is never auto-assigned: Scribe asks the human charge nurse in the room; the Critic accepts an owner only if a room message from a human names one, and records that message as provenance; otherwise the item stays `unresolved` and APPROVE lists it as such. APPROVE → band_add_participant(Grapher), then posts the redacted brief to the boundary room where Closer lives. | band_add_participant, band_send_message, band_send_event |
 | Grapher | fast | Writes the approved brief to Neo4j plus lineage: (Agent)-[:ACCESSED {field, purpose, ts}]->(Field) for every agent/field pair in the room. Entity resolution with Nebius embeddings + vector index ("same patient across encounters?", pseudonymous). Posts merged vs. new. | band_send_message, band_send_event |
 | Closer | strong | Lives in a **boundary room under Erik's second Band account** that only ever receives the redacted approved brief, never the transcript. Drafts the discharge follow-up from that brief (and Researcher's fact: dependent handoff). Posts the draft. Its room history must contain no transcript and no name. | band_send_message, band_send_event |
 
 Band signals this hits and how the demo proves each:
 
 - **Dependent handoff** — Closer's draft changes with Researcher's findings. Prove: run one case with a drug named, one without; the drafts differ.
-- **Roster decided at runtime** — Researcher appears only when a drug is named; Grapher only after APPROVE. Prove: the participant list visibly grows mid-room.
-- **Verdict that can be blocked** — Critic vetoes twice: (1) "someone should call the daughter about discharge" has no owner; (2) the hero veto: patient name + DOB in the outbound brief. Scribe assigns and redacts. APPROVE names the revision. Nothing reaches the boundary room before that.
+- **Roster decided at runtime** — a research room with Researcher appears only when a drug is named; Grapher joins the case room only after APPROVE. Prove: the room list and the participant list visibly grow mid-case.
+- **Verdict that can be blocked** — Critic vetoes twice: (1) "someone should call the daughter about discharge" has no owner: Scribe asks the human in the room, Erik (as charge nurse) replies "I'll own it", Scribe records the owner with that message as provenance; (2) the hero veto: patient name + DOB in the outbound brief; Scribe redacts. APPROVE names the revision. Nothing reaches the boundary room before that. Humans and agents in one room is the point.
 - **Boundary Band enforces** — CORE (phase 3, by 13:30): Closer registered under Erik's second Band account, reachable via contact request into a breakout room that only ever receives the redacted approved brief, never the raw transcript. Prove: open that room's history on screen; no transcript, no name.
 
 Delete test: rip out Band and there's no room, no roster, no gate, no veto. Do not build any fallback orchestrator that calls agents in sequence. Emit Emit.THOUGHTS and Emit.TOOL_CALLS on every agent so the room shows tool calls live.
@@ -59,7 +59,7 @@ Delete test: rip out Band and there's no room, no roster, no gate, no veto. Do n
 - Run `python3 scripts/check_crusoe_tools.py --max 20` (on main) the moment a key exists; it lists the catalog, probes tool calling, and recommends fast/strong/critic with the critic from a different vendor. Copy ids verbatim from its table. Never guess an ID.
 - First 10 minutes: smoke-test tool calling on two candidates with a 3-line script. Band's platform tools are function calls; a model that can't tool-call reliably kills the whole thing. Pick one strong model (Scribe/Researcher/Closer), one fast (Desk/Grapher), one different family for Critic.
 - Wire through Band's LangGraphAdapter(llm=ChatOpenAI(base_url=CRUSOE, api_key=..., model=...)) — the documented Band quickstart with the base URL swapped. Don't invent an adapter.
-- One llm(role) factory in common/llm.py. Fallback chain: Crusoe model A → Crusoe model B → OpenRouter (last resort, logged in red). At demo time the Critic and at least three workers must be on Crusoe.
+- One llm(role) factory in common/llm.py. Fallback chain for agents that hold the raw transcript or identifiers (Desk, Scribe, Critic, Grapher): Crusoe model A → Crusoe model B → **fail closed** (post "inference unavailable, case paused" to the room; never an external provider). OpenRouter is reachable only from the dashboard's ask-the-graph over the pseudonymized graph, and from the Closer's boundary room if both Crusoe models are down (its input is already redacted); log that in red. At demo time the Critic and at least three workers must be on Crusoe.
 
 ## 4. Tool map — self-serve only
 
@@ -74,7 +74,7 @@ Tier 1 = must ship. Tier 2 = ship by T+3:00. Anything not working 20 minutes aft
 | 5 | Nebius | 2 | Embeddings for same-patient-across-encounters (pseudonymous fields only) | Duplicate patients across encounters | Nebius AI Studio, self-serve signup with starter credit, OpenAI-compatible. List embedding models via /v1/models, copy the ID. Cosine ≥ 0.92 → MERGE else CREATE. |
 | 6 | Brave | 2 | Researcher's drug interaction/guideline fact with URL | Critic can't verify enrichment | Brave Search API free plan, self-serve (may ask for a card, $0). Header X-Subscription-Token. Top 5 {title,url,snippet}. Query is the drug name only. Mock first. |
 | — | Merge.dev | cut | — | — | No healthcare fit. Listed in README as "not attempted — cut at pivot." |
-| 8 | Vultr | 2 | Hosts the six agents + dashboard so the demo doesn't ride on venue Wi-Fi | Demo depends on a laptop | Self-serve (card). Check Discord for a Vultr credit code. One VM, Docker Compose. Ship the compose file at T+1:30 even if deploy is later. |
+| 8 | Vultr | 2 | Hosts Scribe, Critic, Grapher, Closer and the dashboard | Demo depends on a laptop | Self-serve (card). Check Discord for a Vultr credit code. One VM, Docker Compose. **Desk, the upload page, and faster-whisper stay on the presenting laptop**; only text crosses to the Band room. That is what makes "zero bytes of audio left this laptop" true. Ship the compose file at 12:45 even if deploy is later. |
 | — | Similarweb | only if a key is pinned in Discord | Company traffic + similar sites → SIMILAR_TO edges | — | Enterprise key; no self-serve path. If a hackathon key is posted, 20-minute cap. Otherwise "Attempted." |
 | — | Plaud, DuploCloud, UserTesting | cut | — | — | Need a device or a provisioned tenant. Listed in README as "not attempted — required sponsor provisioning." |
 
@@ -131,15 +131,16 @@ Write fixtures/ first. Humans create accounts in this order: Crusoe, Band (6 age
 - Don't fake the demo. No hard-coded verdicts, no pre-baked graph. The vetoes come from the real recording: Erik says the synthetic patient's full name and DOB early, and "someone should call the daughter about discharge" with no owner, on purpose. Never manufacture a bad quote to stage a veto.
 - Ask the humans one thing at a time, with the exact URL and button.
 - Every claim in the README maps to a file that's actually called. The "most tools" judge will check.
-- Keep the spine on Crusoe. If the logs show OpenRouter carrying the demo, fix Crusoe — don't hide it.
+- Keep the spine on Crusoe. If the logs show OpenRouter carrying the demo, fix Crusoe — don't hide it. Transcript-bearing agents fail closed rather than fall back.
+- Audio never leaves the laptop: Desk + faster-whisper + the upload page run locally in every topology; the compose file on Vultr does not contain Desk.
 - Fifteen minutes per bug, then change approach or cut.
 
 ## 8. Demo (2 minutes, live)
 
 1. Erik drops the .wav recorded this morning on the upload page. Desk transcribes on-device. Say: "zero bytes of audio left this laptop." Log shows the Crusoe model id.
 2. Screen is the Band room, not the dashboard. case-… appears. Scribe posts the HANDOFF brief with quotes. Execution events stream.
-3. Roster grows — Researcher joins because a drug was named. Posts one fact with a URL.
-4. Critic: VETO 1 — "follow-up #2 has no owner." Scribe assigns. Critic: VETO 2 (hero) — "patient name + DOB in outbound." Scribe redacts. Critic: APPROVE revision 3. Roster grows — Grapher joins; the redacted brief crosses to the boundary room.
+3. A research room opens — Researcher is recruited because a drug was named, sees only the drug names, posts one fact with a URL; Scribe relays it into the case room.
+4. Critic: VETO 1 — "follow-up #2 has no owner." Scribe asks the room; Erik types "I'll own it"; Scribe records the owner with that message as provenance. Critic: VETO 2 (hero) — "patient name + DOB in outbound." Scribe redacts. Critic: APPROVE revision 3. Roster grows — Grapher joins; the redacted brief crosses to the boundary room.
 5. Grapher writes Neo4j including ACCESSED edges. Dashboard: "which agents saw identifiers?" → Scribe, Critic.
 6. Closer, in the boundary room, drafts the discharge follow-up from the redacted brief only. Open that room's history: no transcript, no name.
 7. Close: "Audio never left the laptop. Text only touched Crusoe. Nothing identifiable crossed the boundary; Band enforced it, Neo4j proves it. Seven sponsor tools, each with a delete test in the README, all self-serve, built by two people and two agents in four hours."
@@ -149,7 +150,8 @@ Write fixtures/ first. Humans create accounts in this order: Crusoe, Band (6 age
 - make demo green from a clean clone with real keys.
 - Deployed on Vultr; Band room opens from the dashboard.
 - Both Critic vetoes → fix → APPROVE <revision> observed on a real recording.
-- Neo4j answers "which agents saw identifiers?" with Scribe, Critic only; ≥2 encounters linked to one pseudonymous patient.
+- Neo4j answers "which agents saw identifiers?" with Scribe, Critic only (Researcher and Closer absent); ≥2 encounters linked to one pseudonymous patient.
+- Transcript-bearing agents fail closed when Crusoe is down; no external provider ever receives identifiers.
 - Boundary room history contains no transcript and no name.
 - README: ASCII architecture diagram, tool table with delete tests, "Attempted" section, run instructions.
 - HackerSquad: saved, video uploaded, submitted, feedback forms done.

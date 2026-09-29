@@ -16,11 +16,11 @@ Say once, early: the patient is synthetic.
 
 | # | Erik says / does | Judges see | Sponsor tool visible | Proof it is real |
 | --- | --- | --- | --- | --- |
-| 1 | Drops the `.wav` recorded this morning on the upload page. "Zero bytes of audio left this laptop." | Desk transcribes on-device; log line with the Crusoe model id. | Crusoe, faster-whisper (local) | Log shows local transcription and the Crusoe provider |
+| 1 | Drops the `.wav` on the upload page, which runs on this laptop. "Zero bytes of audio left this laptop." | Desk transcribes on-device and posts only text into the Band room; log line with the Crusoe model id. | Crusoe, faster-whisper (local) | Log shows local transcription; the Vultr compose file has no Desk |
 | 2 | "Scribe extracts the handoff brief. Every item carries a verbatim quote." | `case-<slug>` room opens. Scribe posts the HANDOFF brief. Execution events stream. | Band, Crusoe | Quotes are substrings of the transcript on screen |
-| 3 | "A drug was named, so Scribe recruits a researcher. It was not in the room a second ago." | Participant list grows: Researcher joins. Posts one interaction or guideline fact with a URL. | Band runtime recruitment, Brave | URL opens |
-| 4 | "Now the Critic, on a different model family. Two vetoes." | VETO 1: follow-up #2 has no owner. Scribe assigns. VETO 2, the hero: patient name and DOB in the outbound brief. Scribe redacts. APPROVE revision 3. Grapher joins; the redacted brief crosses to the boundary room. | Band veto and gate, Crusoe (two model ids) | The identifiers and the unowned follow-up are Erik's deliberate lines in the recording |
-| 5 | "Grapher writes memory and lineage." | Neo4j nodes plus ACCESSED edges. Dashboard query "which agents saw identifiers?" answers Scribe, Critic. | Neo4j | Live query result on screen |
+| 3 | "A drug was named, so Scribe opens a research room and recruits a researcher. It sees only the drug names." | Room list grows: `case-…-research` appears with Researcher. It posts one interaction or guideline fact with a URL; Scribe relays it. | Band runtime recruitment, Brave | URL opens; research room history shows drug names only |
+| 4 | "Now the Critic, on a different model family. Two vetoes." Erik, as charge nurse, types "I'll own it" in the room when asked. | VETO 1: follow-up #2 has no owner. Scribe asks the room; Erik answers; Scribe records the owner with that message as provenance. VETO 2, the hero: patient name and DOB in the outbound brief. Scribe redacts. APPROVE revision 3. Grapher joins; the redacted brief crosses to the boundary room. | Band veto and gate, human in the room, Crusoe (two model ids) | The identifiers and the unowned follow-up are deliberate lines in the recording; the owner comes from a human, never invented |
+| 5 | "Grapher writes memory and lineage." | Neo4j nodes plus ACCESSED edges. Dashboard query "which agents saw identifiers?" answers Scribe, Critic. Researcher and Closer are absent. | Neo4j | Live query result on screen |
 | 6 | "Closer lives in a separate room under a separate account. It only ever gets the redacted brief." | Closer drafts the discharge follow-up from the redacted brief only. Open that room's history: no transcript, no name. | Band enforced boundary | Room history on screen |
 | 7 | Close: "Audio never left the laptop. Text only touched Crusoe. Nothing identifiable crossed the boundary. Band enforced it, Neo4j proves it. Seven sponsor tools, each with a delete test in the README, all self-serve, built by two people and two agents in four hours." | README tool table with delete tests. | All | `make demo` output |
 
@@ -57,7 +57,7 @@ Merge.dev was cut at the pivot (no healthcare fit). Plaud: no device.
 | Failure | Do |
 | --- | --- |
 | Wifi drops | Play the recorded run; narrate the same beats. |
-| Crusoe rate limit | Retry once; if the log shows OpenRouter in red, say so honestly and show the earlier Crusoe run. Do not hide it. |
+| Crusoe rate limit | Retry once (model B). Transcript-bearing agents then fail closed and the room says "case paused"; say so honestly and show the earlier Crusoe run. Never route the transcript to another provider. |
 | Band web app slow | Keep the terminal event stream visible; it shows the same events. |
 | Transcription slow | Drop `fixtures/handoff_2.txt` instead of the `.wav`. |
 | Neo4j asleep | Wake it in the console before the demo; if it fails, show the lineage screenshot from the rehearsal. |
