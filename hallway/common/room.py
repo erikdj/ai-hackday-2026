@@ -6,7 +6,7 @@ import re
 import os
 from datetime import datetime, timezone
 from band.runtime.tools.agent import AgentTools
-from hallway.common.brief import Brief, digest, normalize, validate_brief, identifier_fields
+from hallway.common.brief import Brief, digest, identifier_fields, identifier_violations, normalize, validate_brief
 
 PREFIX = 'SAFESCRIBE/1\n'
 LEGACY_PREFIX = 'HANDOFF/1\n'
@@ -99,68 +99,253 @@ def case_state(records: list[dict]) -> dict:
             'approved': any(r['kind'] == 'APPROVAL' for r in records)}
 
 
-def readable_summary(kind: str, payload: dict) -> str:
-    """Small judge-facing facts, without copying patient details into headings."""
-    revision=payload.get('revision')
-    revision=revision if isinstance(revision,int) and not isinstance(revision,bool) else '?'
-    facts={
-        'TRANSCRIPT': 'Synthetic handoff ready for Scribe and Critic.',
-        'BRIEF': f'Revision {revision} ready for Critic review.',
-        'OWNER_REQUEST': 'A follow-up needs a human owner; reply to both Scribe and Critic.',
-        'APPROVAL': f'Revision {revision} approved in the case room only.',
-        'CASE_CREATED': 'New case room created.',
-        'ENRICHMENT': 'Research result recorded.',
-        'HANDOFF': 'Handoff details recorded.',
-        'OUTPUT': 'Worker status recorded.',
-        'BOUNDARY_CREATED':'Restricted approved room created.',
-        'BOUNDARY_SENT':'Redacted approval sent to Grapher in the approved room.',
-        'GRAPH_WRITTEN':'Graph write result recorded; inspect backend status.',
-    }
-    if kind=='BRIEF':
-        brief=payload.get('brief')
-        brief=brief if isinstance(brief,dict) else {}
-        count=lambda key: len(brief[key]) if isinstance(brief.get(key),list) else 0
-        clinical=sum(count(key) for key in ('meds','allergies','pending_results','findings'))
-        follow_ups=brief.get('follow_ups') if isinstance(brief.get('follow_ups'),list) else []
-        unresolved=sum(isinstance(item,dict) and item.get('status')=='unresolved' for item in follow_ups)
-        facts[kind]=f'Revision {revision}: {clinical} clinical items, {len(follow_ups)} follow-ups ({unresolved} unresolved). Ready for Critic review.'
-    if kind=='OWNER_REQUEST':
-        facts[kind]=f'Revision {revision}: 1 follow-up needs a human owner. Reply to both Scribe and Critic.'
-    if kind=='VERDICT':
-        verdict=payload.get('verdict')
-        if verdict=='VETO':
-            reasons=payload.get('reasons') if isinstance(payload.get('reasons'),list) else []
-            categories={}
-            # Headings use a fixed taxonomy and counts only, never copy model or
-            # transcript text (which may contain direct identifiers or markup).
-            for reason in reasons:
-                reason=reason.casefold() if isinstance(reason,str) else ''
-                if any(term in reason for term in ('identifier','dob','mrn','phone','address')):
-                    category='identifier checks'
-                elif any(term in reason for term in ('owner','human reply','provenance')):
-                    category='ownership checks'
-                elif 'quote' in reason:
-                    category='quote checks'
-                elif any(term in reason for term in ('url','source')):
-                    category='source checks'
-                else:
-                    category='judgment checks'
-                categories[category]=categories.get(category,0)+1
-            counts=', '.join(f'{category}: {count}' for category,count in categories.items())
-            facts[kind]=f'VETO for revision {revision}: {len(reasons)} issues'+(f' ({counts}).' if counts else '.')
-        elif verdict=='APPROVE':
-            unresolved=payload.get('unresolved_follow_ups')
-            count=len(unresolved) if isinstance(unresolved,list) else 0
-            facts[kind]=f'APPROVE for revision {revision}; {count} unresolved follow-ups remain visible.'
-        else:
-            facts[kind]=f'Review recorded for revision {revision}.'
-    if kind not in facts:
+_ITEM_IDS = re.compile(r'fu-[a-z0-9-]+|fu_[a-z0-9_]+|#\d+')
+_MARKER = re.compile(r'SAFESCRIBE/1|HANDOFF/1', re.IGNORECASE)
+_NAME_PAIR = re.compile(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b')
+_LONG_DIGITS = re.compile(r'\d{7,}')
+_MIXED_TOKEN = re.compile(r'\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{6,}\b')
+_GIVEN_NAME = re.compile(r'[A-Z][a-z]+')
+_TITLES = {
+    'CASE_CREATED': 'Case created', 'BOUNDARY_CREATED': 'Boundary created',
+    'BOUNDARY_SENT': 'Boundary sent', 'GRAPH_WRITTEN': 'Graph written',
+    'ENRICHMENT': 'Enrichment', 'HANDOFF': 'Safe Scribe outbound brief',
+    'OUTPUT': 'Output', 'APPROVAL': 'Approval', 'TRANSCRIPT': 'Transcript received',
+}
+
+
+def _revision(payload: dict) -> str:
+    revision = payload.get('revision') if isinstance(payload, dict) else None
+    return str(revision) if isinstance(revision, int) and not isinstance(revision, bool) else '?'
+
+
+def _as_dict(value) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _plain(value) -> str:
+    if not isinstance(value, str):
+        return ''
+    return ' '.join(value.split())
+
+
+def _safe_text(value, limit=120) -> str:
+    """Collapse model text and drop marker lines or identifier-shaped values."""
+    if value is None:
+        return ''
+    text = ' '.join(str(value).split())
+    if not text:
+        return ''
+    if _MARKER.search(text):
+        return '[withheld]'
+    if identifier_fields(text):
+        return '[withheld: identifier]'
+    # A capitalised pair at the very start is still a name ("Taylor Example takes…").
+    if _NAME_PAIR.search(text) or '@' in text or _LONG_DIGITS.search(text) or _MIXED_TOKEN.search(text):
+        return '[withheld: identifier]'
+    if len(text) > limit:
+        return text[:limit] + '…'
+    return text
+
+
+def _owner_display(owner: str) -> str:
+    parts = _plain(owner).split()
+    if len(parts) >= 2 and _GIVEN_NAME.fullmatch(parts[0]) and _GIVEN_NAME.fullmatch(parts[1]):
+        shown = f'{parts[0]} {parts[1][0]}.'
+    else:
+        shown = ' '.join(parts)
+    return _safe_text(shown)
+
+
+def _joined_texts(items: list) -> str:
+    texts = [_safe_text(item.get('text')) for item in items if isinstance(item, dict)]
+    return ', '.join(text for text in texts if text)
+
+
+def _reason_category(reason: str) -> str:
+    folded = reason.casefold()
+    if any(term in folded for term in ('identifier', 'dob', 'mrn', 'phone', 'address')):
+        return 'identifier checks'
+    if any(term in folded for term in ('owner', 'human reply', 'provenance')):
+        return 'ownership checks'
+    if 'quote' in folded:
+        return 'quote checks'
+    if any(term in folded for term in ('url', 'source')):
+        return 'source checks'
+    return 'judgment checks'
+
+
+def _reason_bullet(reason) -> str:
+    text = reason if isinstance(reason, str) else ''
+    found = _ITEM_IDS.findall(text)
+    category = _reason_category(text)
+    return f'- {category}' + (f': {", ".join(found)}' if found else '')
+
+
+def _case_label(payload: dict) -> str:
+    sources = [payload, _as_dict(payload.get('recording'))]
+    for source in sources:
+        for key in ('case_id', 'room_id'):
+            label = _plain(source.get(key))
+            if label:
+                return label
+    return ''
+
+
+def _brief_lines(payload: dict, revision: str, pseudo_id: str = '[pseudo id]') -> list[str]:
+    brief = _as_dict(payload.get('brief'))
+    patient = _as_dict(brief.get('patient'))
+    lines = [f'### Brief rev {revision}', f'- patient: {pseudo_id}']
+    meds = _as_list(brief.get('meds'))
+    lines.append(f'- meds ({len(meds)}):')
+    for item in meds:
+        item = _as_dict(item)
+        quote = _safe_text(item.get('quote'))
+        lines.append(f'- {_safe_text(item.get("text"))}' + (f' — _{quote}_' if quote else ''))
+        lines[-1] = '  ' + lines[-1]
+    allergies = _as_list(brief.get('allergies'))
+    pending = _as_list(brief.get('pending_results'))
+    findings = _as_list(brief.get('findings'))
+    lines.append(f'- allergies ({len(allergies)}): {_joined_texts(allergies)}'.rstrip())
+    lines.append(f'- pending results ({len(pending)}): {_joined_texts(pending)}'.rstrip())
+    lines.append(f'- findings ({len(findings)})')
+    follow_ups = _as_list(brief.get('follow_ups'))
+    lines.append(f'- follow-ups ({len(follow_ups)}):')
+    for item in follow_ups:
+        item = _as_dict(item)
+        owner = _plain(item.get('owner'))
+        unnamed = not owner or item.get('status') == 'unresolved'
+        tail = '**no owner**' if unnamed else f'owner: {_owner_display(owner)}'
+        quote = _safe_text(item.get('quote'))
+        quote_bit = f' — _{quote}_' if quote else ''
+        lines.append(f'  - {_safe_text(item.get("text"))}{quote_bit} — {tail}')
+    from hallway.common.brief import Patient
+    model_keys = [key for key in ('name', 'dob', 'mrn') if key in Patient.model_fields]
+    present = [key for key in model_keys if _plain(patient.get(key)) or patient.get(key) not in (None, '', [], {})]
+    if present:
+        lines.append('- identity fields present: ' + ', '.join(present))
+    return lines
+
+
+def _verdict_lines(payload: dict, revision: str) -> list[str]:
+    verdict = payload.get('verdict')
+    if verdict == 'VETO':
+        reasons = _as_list(payload.get('reasons'))
+        return [f'### VETO rev {revision}', *[_reason_bullet(reason) for reason in reasons]]
+    if verdict == 'APPROVE':
+        unresolved = payload.get('unresolved_follow_ups')
+        count = len(unresolved) if isinstance(unresolved, list) else 0
+        delivered = 'approved room' if payload.get('scope') == 'approved_room' else 'case room only'
+        return [f'### APPROVE rev {revision}', f'- unresolved follow-ups: {count}', f'- delivered: {delivered}']
+    return [f'### Review rev {revision}']
+
+
+def _owner_lines(payload: dict) -> list[str]:
+    follow_up = _as_dict(payload.get('follow_up'))
+    text = _safe_text(payload.get('text')) or _safe_text(follow_up.get('text')) or _plain(payload.get('follow_up_id')) or _plain(follow_up.get('id'))
+    return ['### Who owns this?', f'- {text}',
+            "Reply in this room mentioning Scribe and Critic with: **I'll own it**"]
+
+
+def _simple_lines(kind: str, payload: dict, revision: str) -> list[str]:
+    lines = [f'### {_TITLES[kind]}']
+    if kind == 'TRANSCRIPT':
+        transcript = _as_dict(payload.get('recording')).get('transcript')
+        words = len(transcript.split()) if isinstance(transcript, str) else 0
+        lines.append(f'- words: {words}')
+        case = _case_label(payload)
+        if case:
+            lines.append(f'- case: {case}')
+    elif kind == 'GRAPH_WRITTEN':
+        lines.append(f'- backend: {_plain(payload.get("status"))}')
+        seen = [item.strip() for item in _as_list(payload.get('who_saw_identifiers')) if isinstance(item, str) and item.strip()]
+        lines.append('- who saw identifiers: ' + ', '.join(seen))
+    elif kind == 'APPROVAL':
+        lines.append(f'- rev {revision}')
+        scope = _plain(payload.get('scope'))
+        if scope:
+            lines.append(f'- scope: {scope}')
+    elif kind == 'HANDOFF':
+        lines.append('- identifiers removed')
+    elif kind in ('CASE_CREATED', 'BOUNDARY_CREATED', 'BOUNDARY_SENT'):
+        case = _case_label(payload)
+        if case:
+            lines.append(f'- case: {case}')
+        approved = _plain(payload.get('approved_room_id'))
+        if approved and kind != 'CASE_CREATED':
+            lines.append(f'- approved room: {approved}')
+    elif kind == 'ENRICHMENT':
+        lines.append(f'- facts: {len(_as_list(payload.get("facts")))}')
+    elif kind == 'OUTPUT':
+        status = _plain(payload.get('status'))
+        if status:
+            lines.append(f'- status: {status}')
+    return lines[:3]
+
+
+def _count_only_lines(kind: str, payload: dict, revision: str) -> list[str]:
+    """Fallback when model text cannot be checked against the source: counts only."""
+    withheld = '- details withheld: identifier check'
+    if kind == 'BRIEF':
+        brief = _as_dict(payload.get('brief'))
+        follow_ups = _as_list(brief.get('follow_ups'))
+        unresolved = sum(1 for item in follow_ups if isinstance(item, dict)
+                         and (item.get('status') == 'unresolved' or not _plain(item.get('owner'))))
+        return [f'### Brief rev {revision}',
+                f'- meds: {len(_as_list(brief.get("meds")))}',
+                f'- allergies: {len(_as_list(brief.get("allergies")))}',
+                f'- pending results: {len(_as_list(brief.get("pending_results")))}',
+                f'- findings: {len(_as_list(brief.get("findings")))}',
+                f'- follow-ups: {len(follow_ups)} ({unresolved} unresolved)', withheld]
+    if kind == 'VERDICT':
+        verdict = payload.get('verdict')
+        title = 'VETO' if verdict == 'VETO' else 'APPROVE' if verdict == 'APPROVE' else 'Review'
+        return [f'### {title} rev {revision}', f'- issues: {len(_as_list(payload.get("reasons")))}', withheld]
+    if kind == 'OWNER_REQUEST':
+        return ['### Who owns this?', '- one follow-up needs a human owner',
+                "Reply in this room mentioning Scribe and Critic with: **I'll own it**", withheld]
+    return [f'### {_TITLES.get(kind, kind)}', withheld]
+
+
+def readable_summary(kind: str, payload: dict, recording: dict | None = None) -> str:
+    """Judge-facing markdown. Identifier values stay in the machine envelope only.
+
+    Model text is shown only when it can be checked against the authenticated source
+    recording; otherwise the summary is counts-only. The patient line always uses the
+    Desk-assigned pseudo_id from the recording, never the model's value."""
+    if not isinstance(payload, dict):
+        payload = {}
+    recording = recording if isinstance(recording, dict) else None
+    revision = _revision(payload)
+    if kind == 'BRIEF':
+        lines = (_brief_lines(payload, revision, _plain(recording.get('pseudo_id')) or '[pseudo id]')
+                 if recording is not None else _count_only_lines(kind, payload, revision))
+    elif kind == 'VERDICT':
+        lines = _verdict_lines(payload, revision)
+    elif kind == 'OWNER_REQUEST':
+        lines = _owner_lines(payload) if recording is not None else _count_only_lines(kind, payload, revision)
+    elif kind in _TITLES:
+        lines = _simple_lines(kind, payload, revision)
+    else:
         raise ValueError('Unknown protocol post kind')
-    return f'**{kind}** — {facts[kind]}'
+    block = '\n'.join(lines)
+    if recording is not None:
+        try:
+            leaked = identifier_violations({'summary': block}, recording)
+        except Exception:  # fail closed: an uncheckable summary shows counts only
+            leaked = ['uncheckable']
+        if leaked:
+            block = '\n'.join(_count_only_lines(kind, payload, revision))
+    return block
 
 
-async def post(tools: AgentTools, kind: str, payload: dict, roles: list[str], ids: dict[str, str]):
-    content = readable_summary(kind,payload) + '\n\n' + PREFIX + json.dumps({'kind':kind, **payload}, ensure_ascii=False)
+async def post(tools: AgentTools, kind: str, payload: dict, roles: list[str], ids: dict[str, str], recording: dict | None = None):
+    readable = readable_summary(kind, payload, recording)
+    envelope = json.dumps({'kind': kind, **payload}, ensure_ascii=False)
+    content = readable + '\n\n_Machine envelope (authenticated provenance):_\n\n' + PREFIX + envelope
     if not roles:
         # SDK messages require recipients; status is a durable Band task event.
         return await tools.send_event(content=content, message_type='task')
@@ -276,7 +461,7 @@ async def request_owner(tools: AgentTools, ids: dict[str,str], follow_up_id: str
         raise ValueError('Missing Scribe/Critic handles for verifiable human reply')
     payload={'follow_up_id':follow_up_id,'revision':state['brief']['revision'],
              'prompt':f'Please name an owner with /own {follow_up_id} Full Name, or reply I will own it. Address your reply to both {scribe_handle} and {critic_handle}. If unassigned, this remains unresolved.'}
-    await post(tools,'OWNER_REQUEST',payload,['human','critic'],dict(ids,human=human_id))
+    await post(tools,'OWNER_REQUEST',payload,['human','critic'],dict(ids,human=human_id),recording=state['recording'])
     updated=await room_records(tools,ids)
     matches=[r for r in updated if r['kind']=='OWNER_REQUEST' and r['follow_up_id']==follow_up_id]
     if not matches:
@@ -341,7 +526,7 @@ async def submit_brief(tools: AgentTools, ids: dict[str,str], brief: Brief) -> d
     payload={'revision':revision,'brief':brief.model_dump(),'digest':digest(brief.model_dump()),
              'removed_unsupported_follow_ups':removed,'processing':processing_evidence(state,'scribe','extraction')}
     await action_event(tools,f'Publishing HANDOFF brief revision {revision}; case-room-only phase 1')
-    await post(tools,'BRIEF',payload,['critic'],ids)
+    await post(tools,'BRIEF',payload,['critic'],ids,recording=state['recording'])
     if os.getenv('ENABLE_DRUG_RESEARCH')=='1':
         from hallway.common.research_room import request_research
         payload['research']=await request_research(tools,ids,brief,state['recording'])
@@ -388,7 +573,7 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
                 raise ValueError('Human escalation recipient missing; room remains blocked')
             ids=dict(ids,human=human_id);recipients.append('human')
         await action_event(tools,'Veto: evidence, ownership or identifier check failed; no outbound delivery')
-        await post(tools,'VERDICT',verdict,recipients,ids)
+        await post(tools,'VERDICT',verdict,recipients,ids,recording=state['recording'])
         return verdict
     facts=[]
     if os.getenv('ENABLE_DRUG_RESEARCH')=='1':
@@ -411,9 +596,9 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
         raise ValueError('Approval envelope contains a direct identifier; blocked')
     if not prior:
         await post(tools,'VERDICT',{'verdict':'APPROVE','revision':current['revision'],
-                                  'reasons':[],'unresolved_follow_ups':unresolved,'processing':processing_evidence(state,'critic','review')},['scribe'],ids)
+                                  'reasons':[],'unresolved_follow_ups':unresolved,'processing':processing_evidence(state,'critic','review')},['scribe'],ids,recording=state['recording'])
     await action_event(tools,'Approved exact revision in case room only; boundary-room integration remains pending')
-    await post(tools,'APPROVAL',payload,['scribe'],ids)
+    await post(tools,'APPROVAL',payload,['scribe'],ids,recording=state['recording'])
     if os.getenv('ENABLE_APPROVED_ROOM')=='1':
         return await publish_approved_boundary(tools,ids,state,payload)
     return {'status':'APPROVED','revision':current['revision'],'unresolved_follow_ups':unresolved,'scope':'case_only_phase1'}
@@ -440,7 +625,7 @@ async def publish_approved_boundary(tools: AgentTools, ids: dict[str,str], state
         checkpoint={'case_id':tools.room_id,'approved_room_id':room_id,'revision':current['revision'],'digest':current['digest']}
         # A crash before this checkpoint can orphan an EMPTY room; it cannot
         # leak a transcript or send an unapproved brief to downstream workers.
-        await post(tools,'BOUNDARY_CREATED',checkpoint,[],ids)
+        await post(tools,'BOUNDARY_CREATED',checkpoint,[],ids,recording=state['recording'])
     if room_id==tools.room_id:
         raise ValueError('Boundary checkpoint points to the case room')
     boundary=AgentTools(room_id,tools.rest,agent_id=ids['critic'])
@@ -477,9 +662,9 @@ async def publish_approved_boundary(tools: AgentTools, ids: dict[str,str], state
         # heuristic. They are not model/transcript fields and cannot carry text.
         for entry in manifest:
             entry['ts']=ts
-        await post(boundary,'APPROVAL',outbound,['grapher'],ids)
+        await post(boundary,'APPROVAL',outbound,['grapher'],ids,recording=state['recording'])
     if not any(r['kind']=='BOUNDARY_SENT' and r.get('approved_room_id')==room_id for r in records):
-        await post(tools,'BOUNDARY_SENT',checkpoint,['scribe'],ids)
+        await post(tools,'BOUNDARY_SENT',checkpoint,['scribe'],ids,recording=state['recording'])
     return {'status':'APPROVED','revision':current['revision'],'approved_room_id':room_id,'scope':'approved_room'}
 
 
