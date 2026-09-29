@@ -15,6 +15,7 @@ this file is the offline summary. Update it in every PR that changes the plan.
 
 - [ ] JV-99 Wire the agent's LLM to Crusoe end to end
 - [ ] JV-102 Demo script written; rehearsal pending a green `make demo`
+- [x] JV-109 Synthetic handoff fixtures (.txt + .wav, xAI voices) so the demo needs no live recording
 
 ## HANDOFF build phases (Jaiven's agent, Astra in Codex)
 

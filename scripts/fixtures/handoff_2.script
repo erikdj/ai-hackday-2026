@@ -1,0 +1,21 @@
+# HANDOFF handoff_2: THE DEMO. Nurse-to-nurse shift handoff, surgical floor, day three after
+# a right hip replacement. Same synthetic patient as case 1 (Neo4j link).
+# Planted lines the Critic must catch:
+#   1. Full name + date of birth in the first line (identifiers must not reach the outbound room).
+#   2. "Someone should call the daughter about discharge" has no owner -> VETO.
+#   3. Warfarin plus a newly started ciprofloxacin -> Researcher is recruited for one sourced
+#      interaction fact with a URL.
+# Everything else has a named owner. Synthetic patient. Any resemblance to a real person is coincidental.
+# voices: A=eve B=leo
+# edge-voices: A=en-US-JennyNeural B=en-US-GuyNeural
+A: Okay, bed twelve. This is Robert Callahan, date of birth March fourth, nineteen fifty-two. Seventy-four year old male, post-op day three after a right total hip replacement.
+B: Got it. What's he on?
+A: He's on warfarin for atrial fibrillation, INR this morning was two point eight. Overnight he spiked a temp of thirty-eight point four, so the hospitalist started ciprofloxacin for a suspected urinary tract infection. Culture is pending.
+B: Cipro on top of warfarin. Somebody needs to be watching that INR.
+A: Pharmacy flagged the interaction. Repeat INR is ordered for oh six hundred tomorrow, that one is on the night nurse. Pain is controlled on oral oxycodone. He's allergic to penicillin, he gets hives.
+B: How's his mobility?
+A: Physical therapy walked him with the walker this morning and he did fine. Discharge is looking like Thursday if the culture behaves. Someone should call the daughter about discharge, she's the main contact.
+B: Who's calling her?
+A: It hasn't been assigned yet. Also, his enoxaparin is due at twenty-two hundred, that's yours. And case management still needs the home health referral, that's Maria on the day shift.
+B: Okay. Warfarin plus cipro, INR at six, enoxaparin at twenty-two, daughter call unassigned. Anything else?
+A: That's it. He's hard of hearing on the left side.

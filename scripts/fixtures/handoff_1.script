@@ -1,0 +1,18 @@
+# HANDOFF handoff_1: the PRIOR encounter. Same synthetic patient as case 2, two weeks earlier,
+# emergency department after a fall at home. Every follow-up has an owner. Used to seed
+# Neo4j before the demo so the Grapher can link case 2 to it (same patient, same warfarin).
+# Identifiers are spoken (allowed inside the clinical room); Critic must keep them out of
+# the outbound brief. Synthetic patient. Any resemblance to a real person is coincidental.
+# voices: A=ara B=rex
+# edge-voices: A=en-US-AriaNeural B=en-US-ChristopherNeural
+A: Okay, handing off ED bay four. Robert Callahan, date of birth March fourth, nineteen fifty-two. Seventy-four, came in by ambulance after a fall at home this morning, tripped on a rug.
+B: Any head strike?
+A: He says no and there's no loss of consciousness. Right hip is painful with weight bearing. X-ray shows no fracture, so ortho is not coming down tonight. He is on warfarin for atrial fibrillation, INR came back at two point six.
+B: Good, that's in range. Any imaging on the head anyway, with the warfarin?
+A: Yes, head CT is ordered because of the anticoagulation. Doctor Patel is following it and will call the family with the read. Allergy is penicillin, he gets hives.
+B: Pain?
+A: One dose of oral acetaminophen at sixteen hundred, he rates it a four now. Physical therapy will see him in the morning for a walker assessment, that's on the day team. His daughter Karen is the emergency contact and she has been updated by me at seventeen hundred.
+B: So he stays overnight?
+A: Observation overnight for the CT and the PT eval. Repeat INR with morning labs, that order is in under Doctor Patel. Discharge decision tomorrow after PT. He wears a hearing aid on the right, so talk to his right side.
+B: Got it. Fall, no fracture, warfarin with head CT pending, PT in the morning, Patel owns the labs and the family call.
+A: That's the whole story. Quiet patient, just anxious about going home alone.
