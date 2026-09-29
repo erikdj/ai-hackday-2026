@@ -118,7 +118,7 @@ Test suite at the code freeze: 135 unittest (2 live tests skipped) plus 39 pytes
 doppler setup                                    # project ai-hackday-2026, config dev
 doppler run -- bash scripts/check-crusoe.sh      # live Crusoe catalog and a completion
 make install && make check                       # offline suite
-doppler run -- python -m hallway.dashboard.app   # judge dashboard + MCP endpoint on :8090
+doppler run -- .venv/bin/python -m hallway.dashboard.app   # judge dashboard + MCP endpoint on :8090
 ```
 
 The agents run as Band Remote Agents, one process per role, under `doppler run` (see
