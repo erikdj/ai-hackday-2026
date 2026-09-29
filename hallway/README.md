@@ -10,17 +10,25 @@ numbers in `hallway/fixtures/` are invented (see `hallway/fixtures/README.md`). 
 
 ## Verified status
 
-Real Crusoe function calling has passed. Live Band message parsing, case creation and case reading
-were verified with the wire-format fix in `550fdd7`. The Scribe's GLM and Kimi inference attempts
-then timed out through retries: no BRIEF, veto or approval was observed. The live demo failed its
-90-second budget and remains red. The offline test suite has **52 passing tests**; those tests do
-not establish live end-to-end success.
+Real Crusoe function calling has passed. Band message parsing, case creation and case reading
+were verified in `550fdd7`. With `cfb1268`, live case `4be3e276-d248-4558-878d-6678b75f4ec8`
+produced a BRIEF at 12:01:40, a VETO at 12:01:45, and an OWNER_REQUEST for `fu_call_daughter`
+(message `0d2a7a40-2f8f-4951-b0a2-a0740823f462`). It is awaiting Erik's real reply; no approval
+has been observed. This case's observer also expired after 90 seconds while awaiting the human
+reply. The agents remain connected and a late reply can complete the case, but this run failed
+the timing requirement.
+
+Setting `reasoning_effort=low` for GLM only restored generation within the existing 10-second
+request timeout; model pins and timeouts were unchanged. The earlier GLM/Kimi retry timeouts
+and failed 90-second demo remain historical failures. The complete live demo is still not green.
+The offline suite has **53 passing tests** (48 product + 5 smoke); those tests do not establish
+live end-to-end success.
 
 ## What phase 1 is, and is not
 
 | Is | Is not |
 | --- | --- |
-| Band is the only coordination channel: transcript, brief, owner request, verdict and approval are all Band messages, authenticated by sender id. Delete Band and there is no room, no roster, no veto. | A completed live workflow. Real Crusoe tool calling and Band case creation/read are verified; Scribe timeouts prevented a BRIEF, veto and approval. |
+| Band is the only coordination channel: transcript, brief, owner request, verdict and approval are all Band messages, authenticated by sender id. Delete Band and there is no room, no roster, no veto. | A completed live workflow. BRIEF, VETO and OWNER_REQUEST are now observed; the case awaits a real human reply and has no approval yet. |
 | Critic checks are code, explained by the model: every quote is a normalized substring of the transcript; every pending follow-up has an owner; no direct identifier from the transcript appears anywhere in the outbound JSON. | A de-identification system. The identifier guard is a regex set plus an identifier list pulled from the transcript. It is tuned to the synthetic fixtures. It is not HIPAA anything. |
 | Tests exercise ownerless follow-up and identifier rejection before revision-bound approval. Live veto count/order depends on the actual extraction; no errors are fabricated to stage a second veto. | The research room, the approved (boundary) room, Grapher, Closer, Neo4j lineage, Brave. Those are phases 2 and 3 (JV-106, JV-107). The agent entrypoints exist, but their downstream execution is disabled in phase 1. |
 | An owner for an unowned follow-up comes only from a human's message in the room, recorded with that message id as provenance. Otherwise the item stays `unresolved` and the approval lists it. | Auto-assignment. The model never invents an owner. |
@@ -50,8 +58,8 @@ not establish live end-to-end success.
 
 | Tool | Phase-1 role | Code | State at this commit |
 | --- | --- | --- | --- |
-| Crusoe | inference for Desk, Scribe, Critic | `hallway/common/llm.py` | live function calling passed; Scribe GLM/Kimi retries timed out |
-| Band | room, roster, messages, events, gate | `hallway/common/room.py`, `hallway/common/runtime.py` | live wire parsing, case creation and case read verified (`550fdd7`); full review loop not observed |
+| Crusoe | inference for Desk, Scribe, Critic | `hallway/common/llm.py` | live function calling and brief generation passed after GLM-only reasoning adjustment (`cfb1268`) |
+| Band | room, roster, messages, events, gate | `hallway/common/room.py`, `hallway/common/runtime.py` | live case read/write, BRIEF, VETO and OWNER_REQUEST observed; awaiting human reply, no approval |
 | Neo4j, Nebius, Brave, OpenRouter, Vultr | none in phase 1 | deferred | see `docs/hackday/integration-ledger.md` |
 | Merge.dev | cut at the pivot | none | not attempted |
 | Plaud, DuploCloud, UserTesting | cut | none | not attempted, need a device or a provisioned tenant |
