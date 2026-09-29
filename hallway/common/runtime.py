@@ -41,7 +41,7 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
         tools = bound(config)
         records = await room_records(tools, ids)
         if role in ('grapher','closer'):
-            return approved_payload(records)
+            return approved_payload(records,tools.room_id)
         if role == 'researcher':
             raise ValueError('Research-room integration not implemented; no case transcript access tool')
         if role == 'desk':
@@ -117,7 +117,7 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
     if role == 'critic':
         @tool
         async def band_review_brief(approve: bool, reasons: list[str], config: RunnableConfig) -> dict:
-            """Judge CURRENT Scribe brief. Runtime adds non-overridable quote/owner/source checks; passing approval records case-only approval; no downstream delivery."""
+            """Judge CURRENT Scribe brief. Runtime adds non-overridable quote/owner/source checks; passing approval can create an opted-in approved room and deliver redacted evidence to Grapher."""
             tools = bound(config)
             async with lock(tools):
                 return await review(tools, ids, approve, reasons)
@@ -130,6 +130,58 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
             async with lock(tools):
                 return await request_owner(tools,ids,follow_up_id)
         result.append(band_request_owner)
+    if role=='grapher':
+        @tool
+        async def band_write_approved_graph(config: RunnableConfig) -> dict:
+            """Write only the authenticated current-room Critic approval to graph; return backend and actual lineage query."""
+            tools=bound(config)
+            async with lock(tools):
+                records=await room_records(tools,ids)
+                payload=approved_payload(records,tools.room_id)
+                allowed={ids['critic'],ids['grapher'],payload.get('human_id')}
+                if any(p['id'] not in allowed for p in tools.participants):
+                    raise ValueError('Unexpected participant in restricted graph approved room')
+                mocked=os.getenv('MOCK_NEO4J')=='1'
+                expected_status='MOCK_GRAPH_WRITTEN' if mocked else 'GRAPH_WRITTEN'
+                receipts=[r for r in records if r['kind']=='GRAPH_WRITTEN' and r.get('status')==expected_status and r.get('digest')==payload['digest'] and r.get('revision')==payload['revision']]
+                if receipts:
+                    return receipts[-1]
+                if not mocked and not os.getenv('NEO4J_URI'):
+                    raise ValueError('Neo4j URI absent; implicit memory fallback forbidden for live Grapher')
+                from hallway.graph import store
+                graph_brief=json.loads(json.dumps(payload['brief']))
+                # Existing Erik-owned Neo4j writer consumes name; preserve text
+                # and quotes while mapping the validated medication item shape.
+                for med in graph_brief['meds']:
+                    med['name']=med['text']
+                manifest=list(payload['manifest'])
+                from datetime import datetime,timezone
+                manifest.append({'agent':'grapher','field':'brief','purpose':'graph_write',
+                                 'ts':datetime.now(timezone.utc).isoformat(),
+                                 'source_message_id':payload['message_id'],'room_id':tools.room_id})
+                def write_and_query():
+                    result=store.write_approved(graph_brief,manifest,payload['brief']['patient']['pseudo_id'],payload['case_id'])
+                    return result,store.who_saw_identifiers()
+                for attempt in range(3):
+                    try:
+                        result,lineage=await asyncio.wait_for(asyncio.to_thread(write_and_query),timeout=10)
+                        break
+                    except asyncio.TimeoutError:
+                        logging.error('Neo4j graph write/query timed out; no success receipt')
+                        raise ValueError('Graph result unavailable; check backend before retrying') from None
+                    except Exception as exc:
+                        logging.error('Neo4j graph write/query failed attempt=%s type=%s',attempt+1,type(exc).__name__)
+                        if attempt==2:
+                            raise ValueError('Graph write failed; no success receipt') from None
+                        await asyncio.sleep(0.2*(attempt+1))
+                receipt={'status':'MOCK_GRAPH_WRITTEN' if mocked else 'GRAPH_WRITTEN',
+                         'revision':payload['revision'],'digest':payload['digest'],'case_id':payload['case_id'],
+                         'approved_room_id':tools.room_id,'merged':bool(result.get('merged')),
+                         'encounter':result.get('encounter'),'who_saw_identifiers':lineage,
+                         'provenance_kind':payload['provenance_kind'],'lineage_query_scope':'global_graph_all_encounters'}
+                await post(tools,'GRAPH_WRITTEN',receipt,['critic'],ids)
+                return receipt
+        result.append(band_write_approved_graph)
     return result
 
 

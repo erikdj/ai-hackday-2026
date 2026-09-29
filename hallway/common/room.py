@@ -3,6 +3,8 @@ import asyncio
 import json
 import logging
 import re
+import os
+from datetime import datetime, timezone
 from band.runtime.tools.agent import AgentTools
 from hallway.common.brief import Brief, digest, normalize, validate_brief
 
@@ -10,7 +12,8 @@ PREFIX = 'SAFESCRIBE/1\n'
 LEGACY_PREFIX = 'HANDOFF/1\n'
 AUTHORS = {'TRANSCRIPT': 'desk', 'BRIEF': 'scribe', 'ENRICHMENT': 'researcher',
            'VERDICT': 'critic', 'APPROVAL': 'critic', 'HANDOFF': 'scribe',
-           'CASE_CREATED': 'desk', 'OWNER_REQUEST': 'scribe', 'OUTPUT': None}
+           'CASE_CREATED': 'desk', 'OWNER_REQUEST': 'scribe', 'OUTPUT': None,
+           'BOUNDARY_CREATED':'critic','BOUNDARY_SENT':'critic','GRAPH_WRITTEN':'grapher'}
 
 
 def strip_leading_mentions(content: str, tokens: set[str]) -> str:
@@ -109,6 +112,9 @@ def readable_summary(kind: str, payload: dict) -> str:
         'ENRICHMENT': 'Research result recorded.',
         'HANDOFF': 'Handoff details recorded.',
         'OUTPUT': 'Worker status recorded.',
+        'BOUNDARY_CREATED':'Restricted approved room created.',
+        'BOUNDARY_SENT':'Redacted approval sent to Grapher in the approved room.',
+        'GRAPH_WRITTEN':'Graph write result recorded; inspect backend status.',
     }
     if kind=='VERDICT':
         verdict=payload.get('verdict')
@@ -285,6 +291,9 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
     if not current:
         raise ValueError('No authenticated Scribe brief')
     if state['approved']:
+        if os.getenv('ENABLE_APPROVED_ROOM')=='1':
+            approvals=[r for r in decode_messages(messages,ids) if r['kind']=='APPROVAL']
+            return await publish_approved_boundary(tools,ids,state,approvals[-1])
         return {'status':'already approved'}
     prior=[v for v in state['verdicts'] if v['revision']==current['revision']]
     if prior and prior[-1]['verdict']=='VETO':
@@ -330,10 +339,99 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
                                   'reasons':[],'unresolved_follow_ups':unresolved},['scribe'],ids)
     await action_event(tools,'Approved exact revision in case room only; boundary-room integration remains pending')
     await post(tools,'APPROVAL',payload,['scribe'],ids)
+    if os.getenv('ENABLE_APPROVED_ROOM')=='1':
+        return await publish_approved_boundary(tools,ids,state,payload)
     return {'status':'APPROVED','revision':current['revision'],'unresolved_follow_ups':unresolved,'scope':'case_only_phase1'}
 
 
-def approved_payload(records: list[dict]) -> dict:
-    # Phase 1 deliberately has no downstream execution surface. Case approval is
-    # not proof of delivery into a separate restricted Band room.
-    raise ValueError('Approved-room boundary is not implemented in phase 1; downstream execution forbidden')
+async def publish_approved_boundary(tools: AgentTools, ids: dict[str,str], state: dict, approval: dict) -> dict:
+    """Resume a Critic-owned Band checkpoint; downstream never joins the case."""
+    if not ids.get('grapher'):
+        raise ValueError('Grapher identity required for approved-room delivery')
+    current=state['brief']
+    if approval['revision']!=current['revision'] or approval['digest']!=current['digest'] or digest(approval['brief'])!=current['digest']:
+        raise ValueError('Approval revision/digest no longer matches current authenticated brief')
+    records=await room_records(tools,ids)
+    checkpoints=[r for r in records if r['kind']=='BOUNDARY_CREATED']
+    if checkpoints:
+        checkpoint=checkpoints[-1]
+        if checkpoint['revision']!=current['revision'] or checkpoint['digest']!=current['digest']:
+            raise ValueError('Conflicting immutable boundary checkpoint')
+        room_id=checkpoint['approved_room_id']
+    else:
+        room_id=await tools.create_chatroom()
+        if room_id==tools.room_id:
+            raise ValueError('Approved room must differ from case room')
+        checkpoint={'case_id':tools.room_id,'approved_room_id':room_id,'revision':current['revision'],'digest':current['digest']}
+        # A crash before this checkpoint can orphan an EMPTY room; it cannot
+        # leak a transcript or send an unapproved brief to downstream workers.
+        await post(tools,'BOUNDARY_CREATED',checkpoint,[],ids)
+    if room_id==tools.room_id:
+        raise ValueError('Boundary checkpoint points to the case room')
+    boundary=AgentTools(room_id,tools.rest,agent_id=ids['critic'])
+    await boundary.get_participants()
+    allowed={ids['critic'],ids['grapher'],state['recording'].get('human_id')}
+    if any(p['id'] not in allowed for p in boundary.participants):
+        raise ValueError('Unexpected participant in restricted approved room')
+    from band.client.rest import DEFAULT_REQUEST_OPTIONS
+    from band_rest.agent_api_chats import RenameAgentChatRequestChat
+    await tools.rest.agent_api_chats.rename_agent_chat(room_id,
+        chat=RenameAgentChatRequestChat(title=f'Safe Scribe approved {room_id[:8]}'),request_options=DEFAULT_REQUEST_OPTIONS)
+    human=state['recording'].get('human_id')
+    if human:
+        await boundary.add_participant(human)
+    await recruit(boundary,'grapher',ids)
+    previous=await room_records(boundary,ids)
+    sent=[r for r in previous if r['kind']=='APPROVAL']
+    if sent:
+        approved_payload(previous,room_id)
+        if sent[-1]['digest']!=current['digest'] or sent[-1]['revision']!=current['revision']:
+            raise ValueError('Approved room already contains a different immutable revision')
+    else:
+        ts=datetime.now(timezone.utc).isoformat()
+        manifest=[]
+        for kind,role,purpose,field in [('TRANSCRIPT','desk','intake','transcript'),('BRIEF','scribe','extraction','brief'),('VERDICT','critic','review','brief')]:
+            evidence=[r for r in records if r['kind']==kind and (kind=='TRANSCRIPT' or r.get('revision')==current['revision'])]
+            if not evidence:
+                raise ValueError('Missing authenticated processing-provenance evidence')
+            manifest.append({'agent':role,'field':field,'purpose':purpose,
+                             'source_message_id':evidence[-1]['message_id'],'room_id':tools.room_id})
+        outbound={'revision':current['revision'],'digest':current['digest'],'brief':current['brief'],
+                  'enrichment':approval.get('enrichment',[]),'unresolved_follow_ups':approval.get('unresolved_follow_ups',[]),
+                  'scope':'approved_room','case_id':tools.room_id,'approved_room_id':room_id,'human_id':human,
+                  'manifest':manifest,'provenance_kind':'observed_processing_messages_not_read_receipts'}
+        from hallway.common.brief import identifier_violations
+        if identifier_violations(outbound,state['recording']):
+            raise ValueError('Boundary envelope contains identifier; delivery blocked')
+        # Only runtime-generated transport timestamps are added after the DOB
+        # heuristic. They are not model/transcript fields and cannot carry text.
+        for entry in manifest:
+            entry['ts']=ts
+        await post(boundary,'APPROVAL',outbound,['grapher'],ids)
+    if not any(r['kind']=='BOUNDARY_SENT' and r.get('approved_room_id')==room_id for r in records):
+        await post(tools,'BOUNDARY_SENT',checkpoint,['scribe'],ids)
+    return {'status':'APPROVED','revision':current['revision'],'approved_room_id':room_id,'scope':'approved_room'}
+
+
+def approved_payload(records: list[dict], room_id: str | None = None) -> dict:
+    if not room_id:
+        raise ValueError('Approved-room boundary requires current room context')
+    if any(r['kind'] in ('TRANSCRIPT','BRIEF') for r in records):
+        raise ValueError('Raw case evidence is forbidden in approved-room context')
+    approvals=[r for r in records if r['kind']=='APPROVAL']
+    if not approvals:
+        raise ValueError('No authenticated Critic approval in this boundary room')
+    payload=approvals[-1]
+    expected={'kind','message_id','revision','digest','brief','enrichment','unresolved_follow_ups','scope',
+              'case_id','approved_room_id','human_id','manifest','provenance_kind'}
+    if set(payload)-expected or payload.get('scope')!='approved_room' or payload.get('approved_room_id')!=room_id or payload.get('case_id')==room_id:
+        raise ValueError('Approval envelope does not match restricted boundary room')
+    brief=Brief.model_validate(payload['brief'])
+    if digest(brief.model_dump())!=payload['digest']:
+        raise ValueError('Approval digest mismatch')
+    for old in approvals:
+        if old.get('digest')!=payload['digest'] or old.get('revision')!=payload['revision'] or old.get('case_id')!=payload['case_id']:
+            raise ValueError('Conflicting approved revisions; graph execution blocked')
+    if not isinstance(payload.get('manifest'),list):
+        raise ValueError('Processing manifest required')
+    return payload

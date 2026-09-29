@@ -127,3 +127,31 @@ Agents read `fixtures/<name>.txt` by name; `handoff_2` is the default.
 - Plaud, DuploCloud, UserTesting: not attempted; device or provisioned tenant required.
 - Emit.THOUGHTS: not supported by the Band LangGraph adapter (`SUPPORTED_EMIT` is tool calls and
   usage); explicit `thought` events are posted through `band_send_event` at each protocol step instead.
+
+
+### Opt-in approved room and Grapher (JV-106)
+
+Set `ENABLE_APPROVED_ROOM=1` on Critic and configure the Grapher peer ID; run the
+Grapher process separately. Default remains the case-only phase 1 behavior. After
+approval, Critic creates a separate `Safe Scribe approved <id>` room containing
+Critic, Grapher and the initiating human. Only the redacted approved brief crosses;
+Grapher never joins the case room. Closer recruitment is not part of this slice.
+
+Grapher calls the existing graph store with the case room ID as the stable encounter
+ID. `MOCK_NEO4J=1` remains explicitly mock and posts `MOCK_GRAPH_WRITTEN`. Without
+mock mode, missing `NEO4J_URI` fails closed instead of silently using memory. A mock
+receipt never suppresses a later real write. Actual Neo4j operation still requires
+live verification; tests mock the graph API and Band transport.
+
+The manifest records observed, authenticated Desk intake, Scribe extraction and
+Critic review messages. It is **processing provenance, not delivery/read proof**.
+No identifier-field access edges are invented; the real `who_saw_identifiers()`
+result may be empty and is labeled as a global query across all encounters. The
+existing graph store retains agent/field/purpose/timestamp but not source message
+IDs; those remain in the Band manifest. Runtime-generated ISO processing timestamps
+are appended after identifier checks to avoid confusing transport dates with DOBs.
+
+Band checkpoints resume room delivery on retry and graph writes use stable MERGE
+keys. A crash immediately after room creation can leave an empty orphan room before
+its checkpoint exists. A graph call timeout emits no success receipt; its worker
+thread may still complete, so a later retry can safely rewrite the same encounter.

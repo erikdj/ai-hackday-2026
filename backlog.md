@@ -34,3 +34,5 @@ this file is the offline summary. Update it in every PR that changes the plan.
 ## Done
 
 - [x] JV-94 Project skeleton: CLAUDE.md rules, docs, PR template, Linear project
+
+- JV-106 implementation ready for review: live approved-room/Neo4j verification, full delivery-evidence lineage persistence, and Closer admission remain to validate/complete.

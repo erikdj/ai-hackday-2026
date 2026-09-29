@@ -41,3 +41,5 @@ milestones rather than releases.
 - ADR-0001 (project operating rules) and ADR-0002 (tech stack, proposed/pending).
 - Vendored DuploCloud devkit hackday docs under `docs/reference/duplocloud-devkit/` (Apache-2.0).
 - Linear project AI Hackday 2026 (`P-JV-47`) with issues JV-94 to JV-103.
+
+- JV-106: opt-in Critic-approved room, authenticated room-bound Grapher writes, explicit mock/live receipts, and processing provenance without claimed read proof.
