@@ -1,0 +1,22 @@
+# Informational only. Per CLAUDE.md there is no gating: this workflow is never a required check.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Whitespace and conflict markers
+        run: git diff --check origin/main...HEAD || git diff --check HEAD~1 || true
+      - name: No .env committed
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\.[^e]|$)' ; then
+            echo "::warning::a .env file is tracked"; fi
+      - name: Obvious secrets scan
+        run: |
+          if git grep -nE '(sk-ant-[A-Za-z0-9_-]{10,}|sk-or-v1-[A-Za-z0-9]{10,}|AKIA[0-9A-Z]{16})' -- . ':!*.md' ; then
+            echo "::warning::possible secret found"; fi
+  # Product build/test jobs are added once ADR-0002 picks the stack.
