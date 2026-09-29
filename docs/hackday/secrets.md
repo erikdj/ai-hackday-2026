@@ -17,16 +17,15 @@ cd ai-hackday-2026 && doppler setup                    # pick ai-hackday-2026 / 
 ```bash
 doppler run -- python3 scripts/check_crusoe_tools.py --max 20
 doppler run -- python3 scripts/make_fixtures.py handoff_2
-# once PR #8 lands (Makefile, docker-compose.yml):
+# Makefile and docker-compose.yml are on main:
 doppler run -- make demo
 doppler run -- docker compose up
 ```
 
-## If a tool insists on a file
+## Nothing is written to disk
 
-```bash
-doppler secrets download --no-file --format env > .env     # .env is gitignored
-```
+No `.env` file, no `doppler secrets download`. Every credentialed command runs as
+`doppler run -- <cmd>` so secrets exist only in that process's environment.
 
 Band credentials are read from the environment first (`BAND_<ROLE>_AGENT_ID` / `BAND_<ROLE>_API_KEY`
 for desk, scribe, researcher, critic, grapher, closer). Under `doppler run` no `agent_config.yaml`
@@ -40,7 +39,7 @@ service token scoped to `dev` (Dashboard > Access > Service Tokens) and pass it 
 
 ```bash
 export DOPPLER_TOKEN=dp.st....            # service token, dev config
-doppler run -- docker compose up -d       # once PR #8 lands the compose file
+doppler run -- docker compose up -d       # docker-compose.yml is on main
 ```
 
 Never bake secrets into the image.
