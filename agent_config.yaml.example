@@ -1,0 +1,20 @@
+# Register each role as a separate Remote Agent at https://app.band.ai/agents.
+# Copy to agent_config.yaml; credentials are shown once. Never commit that file.
+desk:
+  agent_id: ""
+  api_key: ""
+scribe:
+  agent_id: ""
+  api_key: ""
+researcher:
+  agent_id: ""
+  api_key: ""
+critic:
+  agent_id: ""
+  api_key: ""
+grapher:
+  agent_id: ""
+  api_key: ""
+closer:
+  agent_id: ""
+  api_key: ""

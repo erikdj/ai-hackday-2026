@@ -1,0 +1,160 @@
+"""Construct the documented Band adapter with room-bound, least-privilege tools."""
+import asyncio
+import json
+import logging
+import os
+import re
+from pathlib import Path
+from band import Agent
+from band.adapters.langgraph import LangGraphAdapter
+from band.core.types import Emit
+from band.runtime.tools.agent import AgentTools
+from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import tool
+from hallway.common.band_cfg import configure_timeouts, credentials, identities
+from hallway.common.brief import Brief, digest
+from hallway.common.llm import llm, InferenceUnavailable
+from hallway.common.room import (action_event, approved_payload, case_state, post,
+                                recruit, review, room_records, raw_messages, submit_brief, request_owner)
+
+
+def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
+    locks = {}
+
+    def bound(config: RunnableConfig) -> AgentTools:
+        room_id = config.get('configurable', {}).get('thread_id')
+        if not isinstance(room_id, str) or not room_id:
+            raise ValueError('Missing Band room execution context')
+        agent = holder['agent']
+        return AgentTools(room_id, agent.runtime.link.rest, agent_id=ids[role])
+
+    def lock(tools):
+        # Process-local serialization prevents duplicate tool calls racing in a room.
+        # All durable facts and handoffs remain exclusively in Band.
+        return locks.setdefault(tools.room_id, asyncio.Lock())
+
+    @tool
+    async def band_read_case(config: RunnableConfig) -> dict:
+        """Read authenticated Band protocol records for the CURRENT room. No room argument."""
+        tools = bound(config)
+        records = await room_records(tools, ids)
+        if role in ('grapher','closer'):
+            return approved_payload(records)
+        if role == 'researcher':
+            raise ValueError('Research-room integration not implemented; no case transcript access tool')
+        if role == 'desk':
+            return {'records':records}
+        state=case_state(records)
+        await tools.get_participants()
+        humans={p['id'] for p in tools.participants if str(p.get('type','')).casefold()=='user'}
+        state['owner_requests']=[r for r in records if r['kind']=='OWNER_REQUEST']
+        state['human_replies']=[m for m in await raw_messages(tools) if str(m.get('sender_type','')).casefold()=='user' and m.get('sender_id') in humans]
+        return state
+
+    result = [band_read_case]
+    if role == 'desk':
+        @tool
+        async def band_ingest_fixture(fixture: str, config: RunnableConfig) -> dict:
+            """Create a Band case from an explicitly requested fixture ID, e.g. handoff_2. The authenticated human request is loaded from Band, not supplied by the model."""
+            tools = bound(config)
+            if not re.fullmatch(r'[a-zA-Z0-9_-]+(?:\.txt)?',fixture):
+                raise ValueError('Unknown fixture ID')
+            async with lock(tools):
+                await tools.get_participants()
+                humans = [p for p in tools.participants if str(p.get('type','')).casefold() == 'user']
+                human_ids = {p['id'] for p in humans}
+                desk=next((p for p in tools.participants if p['id']==ids['desk']),{})
+                desk_handle=desk.get('handle','')
+                requests = []
+                for message in await raw_messages(tools):
+                    if str(message.get('sender_type','')).casefold() != 'user' or message.get('sender_id') not in human_ids:
+                        continue
+                    content=message.get('content','').strip()
+                    if desk_handle and content.startswith(desk_handle+' '):
+                        content=content[len(desk_handle):].strip()
+                    match = re.fullmatch(r'/ingest fixture:([a-zA-Z0-9_-]+(?:\.txt)?)(?: run:([a-zA-Z0-9_-]{1,100}))?', content)
+                    if match:
+                        requests.append((message, match))
+                if not requests:
+                    raise ValueError('No authenticated human /ingest fixture request in this lobby')
+                initiating, match = requests[-1]
+                if match.group(1) != fixture:
+                    raise ValueError('Fixture differs from latest authenticated human request')
+                request_id = match.group(2) or initiating['id']
+                existing = await room_records(tools, ids)
+                matches = [r for r in existing if r['kind']=='CASE_CREATED' and r.get('initiating_message_id')==initiating['id']]
+                if matches:
+                    return matches[-1]
+                human = next(p for p in humans if p['id']==initiating['sender_id'])
+                from hallway.ingest.fixture import load_recording
+                recording = load_recording(fixture)
+                recording['human_id'] = human['id']
+                recording['human_name'] = initiating.get('sender_name') or human.get('name')
+                await action_event(tools, 'Creating a synthetic-fixture case in Band')
+                room_id = await tools.create_chatroom()
+                case = AgentTools(room_id, tools.rest, agent_id=ids['desk'])
+                await case.add_participant(human['id'])
+                for participant in ('scribe','critic'):
+                    await recruit(case, participant, ids)
+                await post(case,'TRANSCRIPT',{'recording':recording},['scribe','critic'],ids)
+                payload = {'fixture':fixture, 'request_id':request_id, 'initiating_message_id':initiating['id'], 'room_id':room_id}
+                await post(tools,'CASE_CREATED',payload,[],ids)
+                return payload
+        result.append(band_ingest_fixture)
+    if role == 'scribe':
+        @tool
+        async def band_publish_brief(brief: Brief, config: RunnableConfig) -> dict:
+            """Publish clinical BRIEF in current case room and request Critic review; no downstream recruitment. Revision is runtime controlled."""
+            tools = bound(config)
+            async with lock(tools):
+                return await submit_brief(tools, ids, brief)
+        result.append(band_publish_brief)
+    if role == 'critic':
+        @tool
+        async def band_review_brief(approve: bool, reasons: list[str], config: RunnableConfig) -> dict:
+            """Judge CURRENT Scribe brief. Runtime adds non-overridable quote/owner/source checks; passing approval records case-only approval; no downstream delivery."""
+            tools = bound(config)
+            async with lock(tools):
+                return await review(tools, ids, approve, reasons)
+        result.append(band_review_brief)
+    if role == 'scribe':
+        @tool
+        async def band_request_owner(follow_up_id: str, config: RunnableConfig) -> dict:
+            """Ask the actual human charge nurse to assign one current follow-up; returns authentic Band request message ID."""
+            tools=bound(config)
+            async with lock(tools):
+                return await request_owner(tools,ids,follow_up_id)
+        result.append(band_request_owner)
+    return result
+
+
+def build_agent(role: str, instructions: str):
+    configure_timeouts()
+    ids = identities()
+    holder = {}
+    tools = make_tools(role, holder, ids)
+    adapter = LangGraphAdapter(llm=llm(role), additional_tools=tools,
+        include_tools=[], capabilities=set(), emit={Emit.TOOL_CALLS, Emit.USAGE},
+        recursion_limit=16, custom_section=instructions)
+    original_on_message=adapter.on_message
+    async def on_message_with_pause(msg, tools, history, participants_msg, contacts_msg, *, is_session_bootstrap, room_id):
+        try:
+            return await original_on_message(msg,tools,history,participants_msg,contacts_msg,
+                is_session_bootstrap=is_session_bootstrap,room_id=room_id)
+        except InferenceUnavailable:
+            await tools.send_event(content='inference unavailable, case paused',message_type='error')
+            raise
+    adapter.on_message=on_message_with_pause
+    agent = Agent.create(adapter=adapter, agent_id=ids[role], api_key=credentials(role)[1])
+    holder['agent'] = agent
+    return agent
+
+
+def run(role: str, instructions: str):
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+    asyncio.run(build_agent(role, instructions).run())
