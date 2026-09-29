@@ -94,7 +94,7 @@ Crusoe is the only inference provider in the code; if it is unavailable, the cas
 | Scribe extracts the quoted brief | `zai-org/GLM-5.3`, low reasoning | transcript (PHI) |
 | Desk opens the case, Critic reviews and vetoes | `Qwen/Qwen3.8-27B`, thinking off, a second model family by rule | transcript (PHI) |
 | Grapher writes the pseudonymous graph through tool calls | Qwen | pseudonymous brief (no identifiers; still PHI until formally de-identified) |
-| Researcher turns drug names into sourced facts | Qwen | drug names only |
+| Researcher turns drug names into sourced facts | `zai-org/GLM-5.3` (same tier as Scribe) | drug names only |
 | **Compliance narrative**: a three-sentence privacy-officer statement written from lineage metadata only, shown on the dashboard and served as a DuploCloud tool, with the exact payload sent | Qwen | agent names, field names, counts |
 
 The split matters: the agents that receive the transcript or the pseudonymous brief are one
@@ -124,14 +124,14 @@ hallway/                           the product (directory name predates the prod
   dashboard/                       judge dashboard, lineage queries, Crusoe compliance narrative, MCP endpoint for DuploCloud
   ingest/                          local upload page, faster-whisper transcription, Desk inbox watcher
   research/                        Brave and Similarweb facts
-  fixtures/                        four synthetic scenarios: script, transcript, WAV
+  fixtures/                        four synthetic scenarios: transcript, WAV (scripts in scripts/fixtures/)
   tests/                           spine, boundary, lineage, research, inbox tests
 scripts/                           Crusoe smoke test and tool-calling probe, fixture synthesis (xAI TTS)
 docker-compose.yml                 role-scoped agent deployment (phase-2 profile), unused today
 backlog.md / changelog.md          what is next / what shipped
 ```
 
-Test suite at the code freeze: 135 unittest (2 live tests skipped) plus 44 pytest, all green.
+Test suite at the code freeze: 140 unittest (135 under `hallway/tests`, 2 live tests skipped; 5 under `scripts/`) plus 44 pytest, all green.
 
 ## Run it
 

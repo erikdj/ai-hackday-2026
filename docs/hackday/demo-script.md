@@ -95,7 +95,7 @@ Speak to the architecture diagram in `docs/hackday/submission-readme.md`, then h
 6. **How it was built (0:30).** Two humans, three agent sessions. Every task a Linear issue, every
    change a PR with an independent local AI review (Astra via Codex CLI) before merge, a third
    Claude session as overseer holding the clock and challenging claims not backed by a live run.
-   Doppler as the single secrets store. Thirty PRs merged in the day. The integration ledger
+   Doppler as the single secrets store. Forty-nine PRs merged in the day. The integration ledger
    (`docs/hackday/integration-ledger.md`) says verified, mocked, attempted or deferred per tool,
    and the README table is generated from it.
 
