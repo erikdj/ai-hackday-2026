@@ -49,7 +49,8 @@ Merge.dev was cut at the pivot (no healthcare fit). Plaud: no device.
 - [ ] Brave key live; `MOCK_*` all 0 for tier 1
 - [ ] Vultr VM up, `docker compose ps` all Up; dashboard URL bookmarked (laptop fallback ready)
 - [ ] `hallway/fixtures/handoff_2.wav` and `handoff_2.txt` ready (synthetic, xAI voices); the planted lines are the full name + DOB in line one and "Someone should call the daughter about discharge, she's the main contact."
-- [ ] Erik has practised typing `@Scribe @Critic I'll own it` in a Band room; the mentions must resolve
+- [ ] Erik is logged into app.band.ai on the demo laptop; his account is the human participant in the case room, and he replies `@Scribe @Critic I'll own it` when Scribe asks (practised once; the mentions must resolve)
+- [ ] Scribe extraction on the pinned STRONG model completes in under 15 s on `handoff_2` (thinking off or a non-reasoning model); a 90 s timeout is correct but too slow for a two-minute demo
 - [ ] `make demo` green in the last 15 minutes
 - [ ] Recorded run (screen capture) saved locally in case wifi or a sponsor API fails
 

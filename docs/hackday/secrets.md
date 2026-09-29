@@ -28,9 +28,10 @@ doppler run -- docker compose up
 doppler secrets download --no-file --format env > .env     # .env is gitignored
 ```
 
-Band's per-agent `agent_config.yaml` is also gitignored; keep the six agent keys in Doppler as
-`BAND_<ROLE>_AGENT_ID` / `BAND_<ROLE>_API_KEY` and render the YAML locally from them (script in
-`scripts/` once Band ids exist).
+Band credentials are read from the environment first (`BAND_<ROLE>_AGENT_ID` / `BAND_<ROLE>_API_KEY`
+for desk, scribe, researcher, critic, grapher, closer). Under `doppler run` no `agent_config.yaml`
+exists on disk; the YAML loader is only a fallback for a machine without Doppler, and that file is
+gitignored.
 
 ## Vultr VM
 
