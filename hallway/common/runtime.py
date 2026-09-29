@@ -61,11 +61,9 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
     result = [band_read_case]
     if role == 'desk':
         @tool
-        async def band_ingest_fixture(fixture: str, config: RunnableConfig) -> dict:
-            """Create a Band case from an explicitly requested fixture ID, e.g. handoff_2. The authenticated human request is loaded from Band, not supplied by the model."""
+        async def band_ingest_fixture(config: RunnableConfig) -> dict:
+            """Create a Band case from the latest authenticated human fixture request. No model arguments; fixture ID and request nonce come only from Band."""
             tools = bound(config)
-            if not re.fullmatch(r'[a-zA-Z0-9_-]+(?:\.txt)?',fixture):
-                raise ValueError('Unknown fixture ID')
             async with lock(tools):
                 await tools.get_participants()
                 humans = [p for p in tools.participants if str(p.get('type','')).casefold() == 'user']
@@ -85,8 +83,7 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                 if not requests:
                     raise ValueError('No authenticated human /ingest fixture request in this lobby')
                 initiating, match = requests[-1]
-                if match.group(1) != fixture:
-                    raise ValueError('Fixture differs from latest authenticated human request')
+                fixture=match.group(1)
                 request_id = match.group(2) or initiating['id']
                 existing = await room_records(tools, ids)
                 matches = [r for r in existing if r['kind']=='CASE_CREATED' and r.get('initiating_message_id')==initiating['id']]
