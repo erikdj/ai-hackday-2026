@@ -8,8 +8,8 @@ prize pool), and wires in other sponsor tools that do real work.
 
 ## Status
 
-- Idea: in progress (Jaiven). See Linear issue JV-95.
-- Tech stack: undecided until [ADR-0002](docs/decisions/0002-tech-stack.md) is accepted.
+- Idea: **HALLWAY** (Jaiven). Build brief in [docs/hackday/hallway-build-brief.md](docs/hackday/hallway-build-brief.md) (PR #4). See Linear JV-95.
+- Tech stack: proposed in [ADR-0002](docs/decisions/0002-tech-stack.md), awaiting human sign-off.
 - Project tracking: Linear project **AI Hackday 2026** (`P-JV-47`), Jaiven team.
 
 ## Read first

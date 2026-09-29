@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+agent_config.yaml
+**/agent_config.yaml
 
 # Build artifacts and dependencies (stack-agnostic; extend in ADR-0002)
 node_modules/
