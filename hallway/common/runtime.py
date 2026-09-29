@@ -61,11 +61,9 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
     result = [band_read_case]
     if role == 'desk':
         @tool
-        async def band_ingest_fixture(fixture: str, config: RunnableConfig) -> dict:
-            """Create a Band case from an explicitly requested fixture ID, e.g. handoff_2. The authenticated human request is loaded from Band, not supplied by the model."""
+        async def band_ingest_fixture(config: RunnableConfig) -> dict:
+            """Create a Band case from the latest authenticated human fixture request. No model arguments; fixture ID and request nonce come only from Band."""
             tools = bound(config)
-            if not re.fullmatch(r'[a-zA-Z0-9_-]+(?:\.txt)?',fixture):
-                raise ValueError('Unknown fixture ID')
             async with lock(tools):
                 await tools.get_participants()
                 humans = [p for p in tools.participants if str(p.get('type','')).casefold() == 'user']
@@ -85,8 +83,7 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                 if not requests:
                     raise ValueError('No authenticated human /ingest fixture request in this lobby')
                 initiating, match = requests[-1]
-                if match.group(1) != fixture:
-                    raise ValueError('Fixture differs from latest authenticated human request')
+                fixture=match.group(1)
                 request_id = match.group(2) or initiating['id']
                 existing = await room_records(tools, ids)
                 matches = [r for r in existing if r['kind']=='CASE_CREATED' and r.get('initiating_message_id')==initiating['id']]
@@ -145,6 +142,20 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                 async with lock(tools):
                     return await relay_research(tools,ids)
             result.append(band_relay_research)
+            @tool
+            async def band_start_research(config: RunnableConfig) -> dict:
+                """Resume research for the current authenticated published brief without creating a revision."""
+                from hallway.common.research_room import request_research
+                tools=bound(config)
+                async with lock(tools):
+                    state=case_state(await room_records(tools,ids))
+                    if not state['brief'] or state['approved']:
+                        raise ValueError('An unapproved authenticated brief is required')
+                    brief=Brief.model_validate(state['brief']['brief'])
+                    if digest(brief.model_dump())!=state['brief']['digest']:
+                        raise ValueError('Current brief digest mismatch')
+                    return await request_research(tools,ids,brief,state['recording'])
+            result.append(band_start_research)
         else:
             @tool
             async def band_research_drugs(config: RunnableConfig) -> dict:
@@ -198,12 +209,19 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                         if attempt==2:
                             raise ValueError('Graph write failed; no success receipt') from None
                         await asyncio.sleep(0.2*(attempt+1))
+                from hallway.common.brief import IDENTIFIER_FIELDS
+                expected_roles={entry['agent'] for entry in manifest if entry.get('field') in IDENTIFIER_FIELDS}
+                query_matches=(isinstance(lineage,list) and all(isinstance(role,str) for role in lineage)
+                               and bool(expected_roles) and expected_roles.issubset(set(lineage)))
+                verification=payload.get('lineage_verification','unverified_processing_only')
+                if verification=='verified_field_access' and not query_matches:
+                    verification='unverified_graph_query_mismatch'
                 receipt={'status':'MOCK_GRAPH_WRITTEN' if mocked else 'GRAPH_WRITTEN',
                          'revision':payload['revision'],'digest':payload['digest'],'case_id':payload['case_id'],
                          'approved_room_id':tools.room_id,'merged':bool(result.get('merged')),
                          'encounter':result.get('encounter'),'who_saw_identifiers':lineage,
                          'provenance_kind':payload['provenance_kind'],'lineage_query_scope':'global_graph_all_encounters',
-                         'lineage_verification':'unverified_processing_only'}
+                         'lineage_verification':verification}
                 await post(tools,'GRAPH_WRITTEN',receipt,['critic'],ids)
                 return receipt
         result.append(band_write_approved_graph)
@@ -232,6 +250,29 @@ def build_agent(role: str, instructions: str):
     return agent
 
 
+async def run_agent(role: str, agent):
+    """Desk inbox uses the same started SDK client and never a second WebSocket."""
+    if role!='desk' or os.getenv('ENABLE_LOCAL_INBOX')!='1':
+        return await agent.run()
+    from hallway.ingest.watch import watch_inbox
+    from uuid import UUID
+    lobby_id=os.environ.get('BAND_LOBBY_ROOM_ID','')
+    UUID(lobby_id)
+    UUID(os.environ.get('BAND_CHARGE_HUMAN_ID',''))
+    ids=identities()
+    async with agent:
+        lobby=AgentTools(lobby_id,agent.runtime.link.rest,agent_id=ids['desk'])
+        tasks=[asyncio.create_task(agent.run_forever()),asyncio.create_task(watch_inbox(lobby,ids))]
+        try:
+            done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                task.result()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
+
+
 def run(role: str, instructions: str):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     try:
@@ -239,4 +280,4 @@ def run(role: str, instructions: str):
         load_dotenv()
     except ImportError:
         pass
-    asyncio.run(build_agent(role, instructions).run())
+    asyncio.run(run_agent(role,build_agent(role,instructions)))

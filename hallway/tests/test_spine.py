@@ -236,6 +236,19 @@ class CredentialTests(unittest.TestCase):
 
 
 class ProtocolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_transcript_arrives_before_brief_without_false_failure(self):
+        band=FakeBand();band.role='critic'
+        self.assertEqual(await review(band,IDS,True,[]),{'status':'WAITING_FOR_BRIEF'})
+        self.assertFalse(any(r['kind'] in ('VERDICT','APPROVAL') for r in decode_messages(band.messages,IDS)))
+        band.role='scribe'
+        await submit_brief(band,IDS,Brief.model_validate(BASIC))
+        band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+        self.assertEqual(len([r for r in decode_messages(band.messages,IDS) if r['kind']=='VERDICT']),1)
+        band.messages=[]
+        with self.assertRaisesRegex(ValueError,'authenticated Desk transcript'):
+            await review(band,IDS,True,[])
+
     async def test_post_preserves_envelope_after_readable_title(self):
         for kind,payload,role in [('BRIEF',{'revision':1,'brief':BASIC},'scribe'),
                                   ('VERDICT',{'revision':1,'verdict':'VETO','reasons':['Unowned']},'critic'),
@@ -435,15 +448,16 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         lobby=FakeBand();lobby.messages=[];lobby.role='desk';lobby.room_id='lobby';lobby.rooms={'lobby':lobby}
         holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=lobby)))}
         ingest=next(t for t in make_tools('desk',holder,IDS) if t.name=='band_ingest_fixture')
+        self.assertEqual(ingest.args,{})
         config={'configurable':{'thread_id':'lobby'}}
-        with patch('hallway.common.runtime.AgentTools',side_effect=lambda room_id,rest,agent_id:rest.rooms[room_id]),patch('hallway.ingest.fixture.load_recording',return_value=copy.deepcopy(RECORDING)):
+        with patch('hallway.common.runtime.AgentTools',side_effect=lambda room_id,rest,agent_id:rest.rooms[room_id]),patch('hallway.ingest.fixture.load_recording',return_value=copy.deepcopy(RECORDING)) as loader:
             lobby.human('/ingest fixture:handoff_2',sender=IDS['scribe'],sender_type='Agent')
-            with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({},config=config)
             lobby.human('@[[unknown-uuid]] /ingest fixture:handoff_2')
-            with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({},config=config)
             lobby.human('@[['+IDS['desk']+']] /ingest fixture:handoff_2')
-            first=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
-            duplicate=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            first=await ingest.ainvoke({},config=config)
+            duplicate=await ingest.ainvoke({},config=config)
             self.assertEqual(first['room_id'],duplicate['room_id'])
             rename=lobby.agent_api_chats.rename_agent_chat
             rename.assert_awaited_once()
@@ -451,8 +465,15 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(rename.call_args.kwargs['chat'].title,'Safe Scribe case '+first['room_id'][:8])
             self.assertNotIn('Taylor',rename.call_args.kwargs['chat'].title)
             lobby.human('/ingest fixture:handoff_2')
-            second=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            second=await ingest.ainvoke({},config=config)
             self.assertNotEqual(first['room_id'],second['room_id'])
-            with self.assertRaisesRegex(ValueError,'differs'): await ingest.ainvoke({'fixture':'handoff_1'},config=config)
+            request=lobby.human('/ingest fixture:handoff_1.txt run:latest-nonce')
+            lobby.human('/ingest fixture:handoff_3',sender=IDS['scribe'],sender_type='Agent')
+            third=await ingest.ainvoke({},config=config)
+            loader.assert_called_with('handoff_1.txt')
+            self.assertEqual(third['fixture'],'handoff_1.txt')
+            self.assertEqual(third['request_id'],'latest-nonce')
+            self.assertEqual(third['initiating_message_id'],request['id'])
+            self.assertNotEqual(second['room_id'],third['room_id'])
 
 if __name__=='__main__':unittest.main()

@@ -86,7 +86,7 @@ doppler run --no-fallback -- make demo         # real Crusoe + Band credentials 
 Desk runs on the presenting laptop in every topology, never on the Vultr VM, so audio stays local. Text is explicitly sent to Band and Crusoe. Start Desk with
 `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.desk`; start Scribe and Critic in separate terminals with
 `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.scribe` and `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.critic`. The
-compose file deliberately omits Desk; it carries Scribe, Critic and, in later phases, Grapher and Closer.
+Compose file deliberately omits Desk. Its default services are Scribe and Critic; the `phase2` profile adds Researcher and Grapher. Closer remains in the separate `deferred` profile.
 
 For a deliberately offline unit-test harness, run:
 
@@ -107,6 +107,18 @@ passes each service only its own Band key; no secret-file mount is required. To 
 Compose reading a legacy `.env` during interpolation, start cloud services with
 `doppler run --no-fallback -- docker compose --env-file /dev/null up -d`. Docker deployment
 has not been verified in this checkout. `--no-fallback` disables Doppler secret-cache files.
+
+For five-agent operation, keep Desk on the laptop and run the four cloud roles with
+`doppler run --no-fallback -- docker compose --env-file /dev/null --profile phase2 up -d --build`.
+Configure `ENABLE_APPROVED_ROOM=1` and `ENABLE_DRUG_RESEARCH=1` in Doppler, all five
+Band agent IDs and each running role's own key, plus `BRAVE_API_KEY` and
+`NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` (`NEO4J_DATABASE` is optional).
+Use `MOCK_BRAVE=0` and `MOCK_NEO4J=0` for live evidence. Compose passes Brave credentials
+only to Researcher and Neo4j credentials only to Grapher; it passes no human API key,
+Desk watcher configuration or local pseudonym salt. Starting the profile does not turn
+on the feature flags automatically. Do not start a second copy of an already connected
+agent ID; coordinate the handover with the operator between cases. These are deployment
+instructions, not evidence of a Docker build or a live deployment.
 
 Create a Band lobby containing Desk and the human operator; copy its ID to `BAND_LOBBY_ROOM_ID`.
 `make demo` requires `BAND_HUMAN_API_KEY` to send the authenticated intake request. Alternatively,
@@ -172,6 +184,14 @@ Brave results count as live evidence only when their own metadata says `mock: fa
 cover the boundary and retries. Runtime tool wiring and a live end-to-end research run remain
 pending; this helper alone is not sponsor-demo proof.
 
-The current processing-only manifest does **not** verify identifier-field access. Graph writes and their actual query results remain usable, but the live observer explicitly reports lineage unverified and keeps full phase 2 incomplete. No empty/global query is promoted to proof of access.
+New Scribe publication and Critic review tools record the identifier field categories they processed against the authenticated Desk source message. The boundary verifies these runtime records and emits only field labels and evidence IDs. This is tool/runtime processing evidence, **not human reading or Band delivery measurement**. Legacy or mismatched metadata remains unverified and blocks full phase-2 observer success. Detection is conservative and does not certify complete identification. The graph query is global; current-case proof comes from the matching approved manifest.
 
 Set `ENABLE_DRUG_RESEARCH=1` on Scribe, Critic and Researcher to activate the separate drug-only room. Runtime tool wiring now starts recruitment after Scribe publishes, dispatches research-room messages to the relay, and prevents Critic approval until an authenticated result or explicit unavailability arrives. Mock search facts are never propagated as evidence. Live research verification remains pending.
+
+Desk local inbox intake is opt-in with `ENABLE_LOCAL_INBOX=1`, `SAFESCRIBE_INBOX`
+(default `inbox`), and `BAND_CHARGE_HUMAN_ID` set to an actual User in the lobby.
+The watcher shares Desk's started Band client; no second WebSocket or local agent
+orchestrator is created. Its upload producer must atomically rename completed
+`.txt` files; `.part` files are ignored. Other roles never run this watcher.
+Research recruitment interrupted after BRIEF publication can be resumed by the
+case-bound `band_start_research` tool without creating another brief revision.

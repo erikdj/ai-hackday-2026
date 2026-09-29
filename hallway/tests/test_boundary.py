@@ -98,6 +98,17 @@ class BoundaryTests(unittest.IsolatedAsyncioTestCase):
         with patch('hallway.common.runtime.AgentTools',side_effect=bind),patch.dict(os.environ,{'MOCK_NEO4J':'1'}):
             with self.assertRaisesRegex(ValueError,'Unexpected participant'):
                 await tool.ainvoke({},config={'configurable':{'thread_id':boundary.room_id}})
+    async def test_empty_actual_graph_query_cannot_preserve_verified_lineage(self):
+        for query,expected in [([], 'unverified_graph_query_mismatch'),(['desk','scribe','critic'],'verified_field_access')]:
+            with self.enabled(),patch('hallway.common.room.AgentTools',side_effect=bind):case,boundary=await self.approved_case()
+            payload=approved_payload(await room_records(boundary,IDS),boundary.room_id)
+            self.assertEqual(payload['lineage_verification'],'verified_field_access')
+            holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=case)))}
+            tool=next(t for t in make_tools('grapher',holder,IDS) if t.name=='band_write_approved_graph')
+            with patch('hallway.common.runtime.AgentTools',side_effect=bind),patch.dict(os.environ,{'MOCK_NEO4J':'0','NEO4J_URI':'neo4j+s://unit-test.invalid'}),patch('hallway.graph.store.write_approved',return_value={'merged':False,'encounter':case.room_id}),patch('hallway.graph.store.who_saw_identifiers',return_value=query):
+                result=await tool.ainvoke({},config={'configurable':{'thread_id':boundary.room_id}})
+            self.assertEqual(result['lineage_verification'],expected)
+
     async def test_missing_live_graph_config_fails_closed(self):
         with self.enabled(),patch('hallway.common.room.AgentTools',side_effect=bind):case,boundary=await self.approved_case()
         holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=case)))}
