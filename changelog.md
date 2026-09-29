@@ -5,6 +5,9 @@ milestones rather than releases.
 
 ## [Unreleased]
 
+### Changed
+- Pivot to **HANDOFF** (PHI-safe clinical handoff scribe): `docs/hackday/handoff-build-brief.md` supersedes the HALLWAY brief; demo script rewritten to the seven HANDOFF beats; ADR-0002 context amended; ledger: Merge.dev cut, Band boundary room core, Neo4j lineage edges.
+
 ### Added
 - `scripts/check_crusoe_tools.py` + tests: lists Crusoe models, probes tool calling, recommends fast/strong/critic (JV-97).
 - `docs/hackday/demo-script.md`: two-minute HALLWAY demo flow, delete tests, cold-start checklist, fallbacks (JV-102).

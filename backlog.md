@@ -5,7 +5,7 @@ this file is the offline summary. Update it in every PR that changes the plan.
 
 ## Now
 
-- [x] JV-95 Idea selection: HALLWAY (Jaiven, brief in PR #2; review comments on the issue)
+- [x] JV-95 Idea: HANDOFF (pivoted from HALLWAY 11:10 PDT; brief in docs/hackday/handoff-build-brief.md)
 - [x] JV-96 Tech stack decision, ADR-0002 accepted (PR #3)
 - [ ] JV-97 Crusoe account, API key, hello-world inference call (prize qualification gate)
 - [ ] JV-100 Band integration that passes the delete test (Best Use of BAND, $1,000). Tier 1 for HALLWAY
@@ -16,12 +16,12 @@ this file is the offline summary. Update it in every PR that changes the plan.
 - [ ] JV-99 Wire the agent's LLM to Crusoe end to end
 - [ ] JV-102 Demo script written; rehearsal pending a green `make demo`
 
-## HALLWAY build phases (Jaiven's agent, Astra in Codex)
+## HANDOFF build phases (Jaiven's agent, Astra in Codex)
 
-- [ ] JV-105 Phase 1 spine: Desk + Scribe + Critic on Crusoe in a Band room (cut line 1)
-- [ ] JV-106 Phase 2 memory: Grapher to Neo4j, mic to inbox, compose (cut line 2)
-- [ ] JV-107 Phase 3 recruitment and enrichment: Researcher via Brave, Nebius dedupe, Closer draft
-- [ ] JV-108 Phase 4 CRM, dashboard, Vultr deploy, harden, `make demo`
+- [ ] JV-105 Phase 1 spine: Desk + Scribe + Critic on Crusoe in a Band room, both vetoes (cut line 11:50)
+- [ ] JV-106 Phase 2 memory + lineage: Grapher to Neo4j with ACCESSED edges, .wav to inbox, compose (cut line 12:45)
+- [ ] JV-107 Phase 3 boundary room under Erik's second Band account + Researcher on drug names (13:30)
+- [ ] JV-108 Phase 4 dashboard, Vultr deploy, harden, `make demo` (feature freeze 14:00, code freeze 14:40)
 
 ## Candidates (only if the idea needs them)
 
