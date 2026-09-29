@@ -33,7 +33,16 @@ Judging proof: show the provider name in the UI or logs during the demo.
 
 ## DuploCloud
 
-Status: not started (JV-98).
+Status: verified (wired), JV-98. MCP server, provider, scope and ticket registered through the studio
+admin API; the devkit agent completes the MCP handshake and tool discovery against the Safe Scribe
+dashboard and the tool call runs after human approval in the studio UI.
+
+Running the devkit on WSL2 (three things the docs do not say):
+- Ubuntu's `docker.io` ships without the Compose v2 plugin; install `docker-compose` into `~/.docker/cli-plugins/`.
+- With Tailscale the host MTU is 1280 while Docker bridges default to 1500, so container TLS to the
+  license server stalls. Compose override: `networks.default.driver_opts.com.docker.network.driver.mtu: "1280"`.
+- The devkit compose does not map `host.docker.internal`; add `extra_hosts: host.docker.internal:host-gateway`
+  to `claude-code-agent` and `duplo-ai-studio`.
 
 The platform runs locally via Docker (six containers). An Agent is an extension: C# backend +
 Angular remote + provisioning skill, hot-loaded without restart. Install per
