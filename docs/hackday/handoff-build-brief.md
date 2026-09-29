@@ -126,7 +126,7 @@ Write fixtures/ first. Humans create accounts in this order: Crusoe, Band (6 age
 - One file per agent, one file per integration. Dependencies: band-sdk, langgraph, langchain-openai, openai, neo4j, fastapi, httpx, faster-whisper. Nothing else without a reason in the commit message. No base classes, no plugin systems, no config loaders.
 - Every network call: 10s timeout, 2 retries, log the failure with the tool name.
 - Commit every 15 minutes with a message that says what works now. Push to the remote the humans put in HackerSquad.
-- make demo runs fixtures/handoff_2.txt end to end and prints the room URL, the lineage query result (Scribe, Critic), and the boundary room URL. Red make demo = no new features.
+- make demo runs fixtures/handoff_2.txt end to end and prints the room URL, the lineage query result (Desk, Scribe, Critic), and the boundary room URL. Red make demo = no new features.
 - Announce cuts immediately and add them to README "Attempted." Honest scope beats broken scope.
 - Don't fake the demo. No hard-coded verdicts, no pre-baked graph. The vetoes come from the real recording: Erik says the synthetic patient's full name and DOB early, and "someone should call the daughter about discharge" with no owner, on purpose. Never manufacture a bad quote to stage a veto.
 - Ask the humans one thing at a time, with the exact URL and button.
@@ -141,7 +141,7 @@ Write fixtures/ first. Humans create accounts in this order: Crusoe, Band (6 age
 2. Screen is the Band room, not the dashboard. case-… appears. Scribe posts the HANDOFF brief with quotes. Execution events stream.
 3. A research room opens — Researcher is recruited because a drug was named, sees only the drug names, posts one fact with a URL; Scribe relays it into the case room.
 4. Critic: VETO 1 — "follow-up #2 has no owner." Scribe asks the room; Erik types "I'll own it"; Scribe records the owner with that message as provenance. Critic: VETO 2 (hero) — "patient name + DOB in outbound." Scribe redacts. Critic: APPROVE revision 3. Roster grows — Grapher joins; the redacted brief crosses to the boundary room.
-5. Grapher writes Neo4j including ACCESSED edges. Dashboard: "which agents saw identifiers?" → Scribe, Critic.
+5. Grapher writes Neo4j including ACCESSED edges. Dashboard: "which agents saw identifiers?" → Desk, Scribe, Critic.
 6. Closer, in the boundary room, drafts the discharge follow-up from the redacted brief only. Open that room's history: no transcript, no name.
 7. Close: "Audio never left the laptop. Text only touched Crusoe. Nothing identifiable crossed the boundary; Band enforced it, Neo4j proves it. Seven sponsor tools, each with a delete test in the README, all self-serve, built by two people and two agents in four hours."
 
