@@ -80,7 +80,12 @@ def _followups(arguments):
 
 def _dispatch_tool(name, arguments):
     if name == "who_saw_identifiers":
-        return queries.who_saw_identifiers()
+        data = queries.who_saw_identifiers()
+        return {
+            k: v
+            for k, v in data.items()
+            if k not in ("expected_on_demo", "matches_expected")
+        }
     if name == "open_followups_by_owner":
         return _followups(arguments)
     if name == "patient_history":
