@@ -202,6 +202,19 @@ class CredentialTests(unittest.TestCase):
 
 
 class ProtocolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_transcript_arrives_before_brief_without_false_failure(self):
+        band=FakeBand();band.role='critic'
+        self.assertEqual(await review(band,IDS,True,[]),{'status':'WAITING_FOR_BRIEF'})
+        self.assertFalse(any(r['kind'] in ('VERDICT','APPROVAL') for r in decode_messages(band.messages,IDS)))
+        band.role='scribe'
+        await submit_brief(band,IDS,Brief.model_validate(BASIC))
+        band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+        self.assertEqual(len([r for r in decode_messages(band.messages,IDS) if r['kind']=='VERDICT']),1)
+        band.messages=[]
+        with self.assertRaisesRegex(ValueError,'authenticated Desk transcript'):
+            await review(band,IDS,True,[])
+
     async def test_post_preserves_envelope_after_readable_title(self):
         for kind,payload,role in [('BRIEF',{'revision':1,'brief':BASIC},'scribe'),
                                   ('VERDICT',{'revision':1,'verdict':'VETO','reasons':['Unowned']},'critic'),

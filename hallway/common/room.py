@@ -353,7 +353,7 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
     state=case_state(decode_messages(messages,ids))
     current=state['brief']
     if not current:
-        raise ValueError('No authenticated Scribe brief')
+        return {'status':'WAITING_FOR_BRIEF'}
     if state['approved']:
         if os.getenv('ENABLE_APPROVED_ROOM')=='1':
             approvals=[r for r in decode_messages(messages,ids) if r['kind']=='APPROVAL']
