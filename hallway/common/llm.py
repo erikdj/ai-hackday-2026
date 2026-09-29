@@ -12,6 +12,25 @@ class InferenceUnavailable(RuntimeError):
     """Safe room-facing error; never includes model input or provider response bodies."""
 
 
+def checked_completion(result, role: str, model: str):
+    """A token-truncated or malformed tool result is not a successful agent turn."""
+    for generation in result.generations:
+        message=generation.message
+        info=generation.generation_info or {}
+        metadata=getattr(message,'response_metadata',{}) or {}
+        finish=info.get('finish_reason') or metadata.get('finish_reason')
+        invalid=getattr(message,'invalid_tool_calls',[]) or []
+        if finish=='length' or invalid:
+            usage=getattr(message,'usage_metadata',None) or {}
+            output_tokens=usage.get('output_tokens')
+            if output_tokens is None:
+                output_tokens=((result.llm_output or {}).get('token_usage') or {}).get('completion_tokens')
+            logging.warning('Crusoe incomplete completion role=%s model=%s finish_reason=%s tool_calls=%s output_tokens=%s',
+                            role,model,finish,len(getattr(message,'tool_calls',[]) or []),output_tokens)
+            raise InferenceUnavailable('inference unavailable, case paused')
+    return result
+
+
 class CrusoeChat(ChatOpenAI):
     """Retain ChatOpenAI's real bind_tools contract while guarding generation.
 
@@ -25,12 +44,12 @@ class CrusoeChat(ChatOpenAI):
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         try:
-            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return checked_completion(super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs), self.hallway_role, self.model_name)
         except Exception as exc:
             logging.warning('Crusoe inference failed role=%s model=%s error=%s; trying Crusoe fallback',
                             self.hallway_role, self.model_name, type(exc).__name__)
         try:
-            return self.crusoe_fallback._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return checked_completion(self.crusoe_fallback._generate(messages, stop=stop, run_manager=run_manager, **kwargs), self.hallway_role, self.crusoe_fallback.model_name)
         except Exception as exc:
             logging.error('Crusoe fallback failed role=%s model=%s error=%s; case paused',
                           self.hallway_role, self.crusoe_fallback.model_name, type(exc).__name__)
@@ -38,12 +57,12 @@ class CrusoeChat(ChatOpenAI):
 
     async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
         try:
-            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return checked_completion(await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs), self.hallway_role, self.model_name)
         except Exception as exc:
             logging.warning('Crusoe inference failed role=%s model=%s error=%s; trying Crusoe fallback',
                             self.hallway_role, self.model_name, type(exc).__name__)
         try:
-            return await self.crusoe_fallback._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return checked_completion(await self.crusoe_fallback._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs), self.hallway_role, self.crusoe_fallback.model_name)
         except Exception as exc:
             logging.error('Crusoe fallback failed role=%s model=%s error=%s; case paused',
                           self.hallway_role, self.crusoe_fallback.model_name, type(exc).__name__)
@@ -69,9 +88,9 @@ def llm(role: str) -> ChatOpenAI:
         if not strong or not critic or strong == critic:
             raise ValueError('Set different verified CRUSOE_FAMILY_STRONG and CRUSOE_FAMILY_CRITIC')
     logging.info('brain role=%s provider=Crusoe model=%s fallback=%s', role, model, fallback)
-    options = dict(base_url=endpoint, api_key=key, timeout=10, max_retries=2,
+    options = dict(base_url=endpoint, api_key=key, timeout=30, max_retries=1,
                    disable_streaming=True, use_responses_api=False,
-                   max_tokens=2048 if role in ('scribe', 'researcher', 'closer') else 1024)
+                   max_tokens=4096 if role == 'scribe' else 2048 if role in ('researcher', 'closer') else 1024)
     # GLM-5.3 is always reasoning-enabled; upstream recommends low for latency:
     # https://docs.z.ai/guides/llm/glm-5.3 (also probed on Crusoe managed inference).
     primary_options=dict(options)

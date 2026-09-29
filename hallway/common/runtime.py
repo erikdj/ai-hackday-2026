@@ -9,6 +9,8 @@ from band import Agent
 from band.adapters.langgraph import LangGraphAdapter
 from band.core.types import Emit
 from band.runtime.tools.agent import AgentTools
+from band.client.rest import DEFAULT_REQUEST_OPTIONS
+from band_rest.agent_api_chats import RenameAgentChatRequestChat
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from hallway.common.band_cfg import configure_timeouts, credentials, identities
@@ -92,6 +94,9 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                 recording['human_name'] = initiating.get('sender_name') or human.get('name')
                 await action_event(tools, 'Creating a synthetic-fixture case in Band')
                 room_id = await tools.create_chatroom()
+                await tools.rest.agent_api_chats.rename_agent_chat(
+                    room_id, chat=RenameAgentChatRequestChat(title=f'Safe Scribe case {room_id[:8]}'),
+                    request_options=DEFAULT_REQUEST_OPTIONS)
                 case = AgentTools(room_id, tools.rest, agent_id=ids['desk'])
                 await case.add_participant(human['id'])
                 for participant in ('scribe','critic'):

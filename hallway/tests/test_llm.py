@@ -57,6 +57,41 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                 await llm('critic').ainvoke('synthetic')
         self.assertEqual(request.call_count, 2)
 
+    async def test_truncated_primary_falls_back_to_valid_completion(self):
+        calls=[]
+        async def generate(client,messages,**kwargs):
+            calls.append(client.model_name)
+            if client.model_name=='primary':
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content=''),generation_info={'finish_reason':'length'})])
+            return answer()
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_agenerate',autospec=True,side_effect=generate):
+            self.assertEqual((await llm('scribe').ainvoke('synthetic')).content,'test response')
+        self.assertEqual(calls,['primary','secondary'])
+
+    async def test_both_truncated_fail_closed(self):
+        async def generate(client,messages,**kwargs):
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=''),generation_info={'finish_reason':'length'})])
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_agenerate',autospec=True,side_effect=generate) as request:
+            with self.assertRaises(InferenceUnavailable):await llm('scribe').ainvoke('synthetic')
+        self.assertEqual(request.call_count,2)
+
+    def test_invalid_tool_call_sync_falls_back(self):
+        calls=[]
+        def generate(client,messages,**kwargs):
+            calls.append(client.model_name)
+            if client.model_name=='primary':
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content='',invalid_tool_calls=[{'name':'publish','args':'{','id':'bad','error':'invalid JSON','type':'invalid_tool_call'}]),generation_info={'finish_reason':'tool_calls'})])
+            return answer()
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_generate',autospec=True,side_effect=generate):
+            self.assertEqual(llm('scribe').invoke('synthetic').content,'test response')
+        self.assertEqual(calls,['primary','secondary'])
+
+    def test_valid_empty_stop_is_not_rejected(self):
+        result=ChatResult(generations=[ChatGeneration(message=AIMessage(content=''),generation_info={'finish_reason':'stop'})])
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_generate',return_value=result) as request:
+            self.assertEqual(llm('critic').invoke('synthetic').content,'')
+        self.assertEqual(request.call_count,1)
+
     def test_sync_fallback(self):
         def generate(client, messages, **kwargs):
             if client.model_name == 'primary':
@@ -74,12 +109,12 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
 
     def test_role_output_budgets_apply_to_both_crusoe_clients(self):
         with patch.dict(os.environ, ENV, clear=True):
-            for role,expected in {'scribe':2048,'researcher':2048,'closer':2048,'desk':1024,'critic':1024,'grapher':1024}.items():
+            for role,expected in {'scribe':4096,'researcher':2048,'closer':2048,'desk':1024,'critic':1024,'grapher':1024}.items():
                 model=llm(role)
                 for client in (model,model.crusoe_fallback):
                     self.assertEqual(client.max_tokens,expected)
-                    self.assertEqual(client.request_timeout,10)
-                    self.assertEqual(client.max_retries,2)
+                    self.assertEqual(client.request_timeout,30)
+                    self.assertEqual(client.max_retries,1)
                     self.assertEqual(str(client.openai_api_base),'https://api.inference.crusoecloud.com/v1')
 
     def test_low_reasoning_only_for_exact_verified_glm_in_either_position(self):
@@ -103,9 +138,9 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                 self.assertEqual(model.extra_body, expected if primary_enabled else None)
                 self.assertEqual(model.crusoe_fallback.extra_body, expected if fallback_enabled else None)
                 for client in (model, model.crusoe_fallback):
-                    self.assertEqual(client.request_timeout, 10)
-                    self.assertEqual(client.max_retries, 2)
-                    self.assertEqual(client.max_tokens, 2048)
+                    self.assertEqual(client.request_timeout, 30)
+                    self.assertEqual(client.max_retries, 1)
+                    self.assertEqual(client.max_tokens, 4096)
 
     def test_disable_thinking_requires_exact_case_sensitive_model_match(self):
         for listed in (None, '', ' , ', 'Primary,secondary-extra,other/primary'):
