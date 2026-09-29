@@ -11,6 +11,19 @@ AUTHORS = {'TRANSCRIPT': 'desk', 'BRIEF': 'scribe', 'ENRICHMENT': 'researcher',
            'CASE_CREATED': 'desk', 'OWNER_REQUEST': 'scribe', 'OUTPUT': None}
 
 
+def strip_leading_mentions(content: str, tokens: set[str]) -> str:
+    """Remove only exact leading Band mention tokens verified outside the message."""
+    if not isinstance(content,str):
+        return content
+    remainder=content.lstrip()
+    while remainder:
+        pieces=remainder.split(None,1)
+        if len(pieces)!=2 or pieces[0] not in tokens:
+            break
+        remainder=pieces[1]
+    return remainder
+
+
 def decode_messages(messages: list[dict], ids: dict[str, str]) -> list[dict]:
     records = []
     for message in messages:
@@ -32,11 +45,20 @@ def decode_messages(messages: list[dict], ids: dict[str, str]) -> list[dict]:
 
 
 async def raw_messages(tools: AgentTools) -> list[dict]:
+    await tools.get_participants()
+    tokens=set()
+    for participant in tools.participants:
+        if participant.get('id'):
+            tokens.add(f"@[[{participant['id']}]]")
+        handle=participant.get('handle')
+        if handle:
+            tokens.add(handle)
+            tokens.add(handle if handle.startswith('@') else '@'+handle)
     messages = []
     page = 1
     while True:
         data = await tools.fetch_room_context(room_id=tools.room_id, page=page, page_size=100)
-        messages.extend(data['data'])
+        messages.extend(dict(message,content=strip_leading_mentions(message.get('content',''),tokens)) for message in data['data'])
         if page >= data['meta'].get('total_pages', 1):
             break
         page += 1

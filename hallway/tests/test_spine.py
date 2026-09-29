@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch, AsyncMock
 from hallway.common.brief import Brief,digest,extract_identifiers,identifier_violations,validate_brief
-from hallway.common.room import PREFIX,approved_payload,decode_messages,review,submit_brief,request_owner
+from hallway.common.room import PREFIX,approved_payload,decode_messages,review,submit_brief,request_owner,raw_messages
 from hallway.common.runtime import make_tools, build_agent
 from hallway.common.band_cfg import credentials,identities
 from hallway.common.llm import InferenceUnavailable
@@ -261,6 +261,40 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(InferenceUnavailable):
                 await agent._adapter.on_message(None,fake_tools,[],None,None,is_session_bootstrap=True,room_id='test-room')
         fake_tools.send_event.assert_awaited_once_with(content='inference unavailable, case paused',message_type='error')
+    async def test_wire_protocol_prefix_is_normalized_only_for_current_roster(self):
+        band=FakeBand()
+        for kind,author in [('TRANSCRIPT','desk'),('BRIEF','scribe'),('OWNER_REQUEST','scribe'),('VERDICT','critic')]:
+            message=record(kind,{},author)
+            message['content']='@[['+IDS['critic']+']] @[['+IDS['scribe']+']] '+message['content']
+            band.messages=[message]
+            self.assertEqual(decode_messages(await raw_messages(band),IDS)[0]['kind'],kind)
+            message['content']='@[[unknown-uuid]] '+message['content']
+            self.assertEqual([],decode_messages(await raw_messages(band),IDS))
+        # A configured peer not in this room is not a verified leading mention.
+        band.participants=[p for p in band.participants if p['id']!=IDS['researcher']]
+        band.messages=[record('BRIEF',{},'scribe')]
+        band.messages[0]['content']='@[['+IDS['researcher']+']] '+band.messages[0]['content']
+        self.assertEqual([],decode_messages(await raw_messages(band),IDS))
+    async def test_raw_wire_normalization_preserves_sender_metadata(self):
+        band=FakeBand();band.messages=[]
+        original=band.human('@[['+IDS['scribe']+']] @[['+IDS['critic']+']] '+"I'll own it")
+        before=copy.deepcopy(original)
+        cleaned=await raw_messages(band)
+        self.assertEqual(cleaned[0]['content'],"I'll own it")
+        for key in ('id','sender_id','sender_type','sender_name','mentions'):
+            self.assertEqual(cleaned[0][key],before[key])
+        self.assertEqual(original,before)
+        band.messages=[dict(original,content='@[[unknown-uuid]] '+original['content'])]
+        self.assertTrue((await raw_messages(band))[0]['content'].startswith('@[[unknown-uuid]]'))
+    async def test_wire_prefix_protocol_and_owner_reply_end_to_end(self):
+        band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human('@[['+IDS['scribe']+']] @[['+IDS['critic']+']] '+"I'll own it",name='Erik Jones')
+        brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+        for message in band.messages:
+            if message['content'].startswith(PREFIX):
+                message['content']='@[['+IDS['critic']+']] '+message['content']
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
     async def test_authenticated_intake_and_repeated_fixture(self):
         lobby=FakeBand();lobby.messages=[];lobby.role='desk';lobby.room_id='lobby';lobby.rooms={'lobby':lobby}
         holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=lobby)))}
@@ -269,7 +303,9 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         with patch('hallway.common.runtime.AgentTools',side_effect=lambda room_id,rest,agent_id:rest.rooms[room_id]),patch('hallway.ingest.fixture.load_recording',return_value=copy.deepcopy(RECORDING)):
             lobby.human('/ingest fixture:handoff_2',sender=IDS['scribe'],sender_type='Agent')
             with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({'fixture':'handoff_2'},config=config)
-            lobby.human('@team/desk /ingest fixture:handoff_2')
+            lobby.human('@[[unknown-uuid]] /ingest fixture:handoff_2')
+            with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            lobby.human('@[['+IDS['desk']+']] /ingest fixture:handoff_2')
             first=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
             duplicate=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
             self.assertEqual(first['room_id'],duplicate['room_id'])
