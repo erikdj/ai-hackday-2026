@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- Second Band account for the Closer demoted to stretch; approved-room membership is the boundary. Model pins corrected to the overseer's latency-probed trio.
 - Pivot to **HANDOFF** (PHI-safe clinical handoff scribe): `docs/hackday/handoff-build-brief.md` supersedes the HALLWAY brief; demo script rewritten to the seven HANDOFF beats; ADR-0002 context amended; ledger: Merge.dev cut, Band boundary room core, Neo4j lineage edges.
 
 ### Added
