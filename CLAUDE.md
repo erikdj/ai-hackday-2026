@@ -103,6 +103,9 @@ Erik's reviewer agent. Astra is OpenAI's `gpt-6-astra`, the default model in `~/
   Note: `codex review` rejects a custom prompt when `--base` is given; use
   `/codex:adversarial-review` (or `codex exec` with a prompt) for focused instructions.
   A full pass on this repo takes roughly five minutes at xhigh reasoning; run it in the background.
+  If it fails with a bwrap loopback error, the working fallback (drops the sandbox, so only on a
+  trusted machine) is `codex review --base main -c model='"gpt-6-astra"'
+  -c model_reasoning_effort='"medium"' -c sandbox_mode='"danger-full-access"' </dev/null`.
 - Review output is returned verbatim. Fix findings via the coder agent, then re-run. A PR is not
   ready until the last review pass has no CRITICAL or HIGH findings, or the human operator
   explicitly waives them.
