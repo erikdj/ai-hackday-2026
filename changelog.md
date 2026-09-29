@@ -12,6 +12,7 @@ milestones rather than releases.
 - Product is **Safe Scribe by TrustEdge AI** (PHI-safe clinical handoff scribe): `docs/hackday/safe-scribe-build-brief.md` replaces the first-idea brief; demo script rewritten to the seven Safe Scribe beats; ADR-0002 context amended; ledger: Merge.dev cut, Band boundary room core, Neo4j lineage edges.
 
 ### Added
+- JV-107: drug-only Band research helper, resumable recruitment, authenticated Scribe relay and strict Brave live-result metadata checks; 11 focused offline tests. Runtime wiring/live research validation pending.
 - `hallway/research/similarweb.py` + tests: Researcher organization-legitimacy fact (spoken domain from the transcript, Similarweb rank + monthly visits with a source URL), fail-closed, `MOCK_SIMILARWEB=1` for offline runs, `SIMILARWEB_API_KEY` from Doppler (JV-113).
 - `hallway/dashboard/mcp.py` + tests: MCP Streamable HTTP endpoint (`POST /mcp`, JSON-RPC, no extra packages) on the judge dashboard exposing `who_saw_identifiers`, `open_followups_by_owner`, `patient_history` so the DuploCloud devkit agent can run the lineage query (JV-98). `hallway/dashboard/README.md` documents registration.
 - `hallway/fixtures/visit_1.{txt,wav}`: doctor/patient follow-up visit with a research trigger (drug change + named referral organization) for the expanded demo (JV-114).

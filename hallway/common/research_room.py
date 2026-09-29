@@ -153,12 +153,17 @@ async def read_research(tools,ids) -> dict:
 def _clean_fact(value,drug):
     if not isinstance(value,dict):
         return None
+    # Brave PR27 contract: environment configuration alone cannot prove a live result.
+    if value.get('mock') is not False or value.get('source')!='brave':
+        return None
+    if value.get('drug',drug)!=drug:
+        return None
     if not all(isinstance(value.get(key),str) and value[key].strip() for key in ('title','url','snippet')):
         return None
     url=urlparse(value['url'])
     if url.scheme not in ('http','https') or not url.netloc or url.username or url.password:
         return None
-    return {key:value[key] for key in ('title','url','snippet')} | {'drug':drug}
+    return {key:value[key] for key in ('title','url','snippet','source','mock')} | {'drug':drug}
 
 
 async def _lookup_fact(drug):

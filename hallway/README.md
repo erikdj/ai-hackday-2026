@@ -127,3 +127,16 @@ Agents read `fixtures/<name>.txt` by name; `handoff_2` is the default.
 - Plaud, DuploCloud, UserTesting: not attempted; device or provisioned tenant required.
 - Emit.THOUGHTS: not supported by the Band LangGraph adapter (`SUPPORTED_EMIT` is tool calls and
   usage); explicit `thought` events are posted through `band_send_event` at each protocol step instead.
+
+## Drug-only research helper (JV-107)
+
+`hallway/common/research_room.py` recruits Researcher into a separate Band room only for
+supported, transcript-backed medication names. The request carries those names and an opaque
+routing UUID, never the transcript or patient identity. Scribe validates and relays source URLs
+back into the case; Critic waits for that relay or an explicit failure. The small medication
+vocabulary skips unsupported names explicitly. Recruitment resumes from a Band checkpoint.
+
+Brave results count as live evidence only when their own metadata says `mock: false` and
+`source: brave`; missing keys and mock results produce no evidence. Eleven focused offline tests
+cover the boundary and retries. Runtime tool wiring and a live end-to-end research run remain
+pending; this helper alone is not sponsor-demo proof.

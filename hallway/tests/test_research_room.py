@@ -14,7 +14,7 @@ IDS={role:role+'-id' for role in ('desk','scribe','critic','researcher','grapher
 RECORDING={'transcript':'Patient name: Taylor Example\nDOB: 1974-04-03\nOn warfarin and ciprofloxacin.', 'pseudo_id':'p-test'}
 BRIEF={'patient':{'pseudo_id':'p-test'},'meds':[{'text':'Warfarin and ciprofloxacin','quote':'On warfarin and ciprofloxacin.'}]}
 CASE='10000000-0000-4000-8000-000000000001'
-FACT={'title':'Public drug information','url':'https://drugs.test/drug','snippet':'Drug information for professional review.'}
+FACT={'title':'Public drug information','url':'https://drugs.test/drug','snippet':'Drug information for professional review.','source':'brave','mock':False}
 
 
 class Backend:
@@ -148,6 +148,17 @@ class ResearchBoundaryTests(unittest.IsolatedAsyncioTestCase):
         checked=research.research_for_review(self.backend.rooms[CASE]['messages'],IDS,self.brief,RECORDING)
         self.assertEqual(checked['facts'],[]);self.assertEqual(checked['status'],'unavailable')
         self.assertIsNone(research._clean_fact(dict(FACT,url='javascript:alert(1)'),'warfarin'))
+    async def test_wrapper_mock_is_rejected_even_with_key_and_live_flags(self):
+        room=await self.recruit()
+        fake=dict(FACT,mock=True,source='mock',url='https://example.invalid/mock-brave')
+        with patch.object(research,'_lookup_fact',new=AsyncMock(return_value=fake)):
+            result=await research.research_drugs(room,IDS)
+        self.assertEqual(result['status'],'unavailable')
+        self.assertEqual(result['facts'],[])
+        await research.relay_research(Room(self.backend,room.room_id,'scribe'),IDS)
+        checked=research.research_for_review(self.backend.rooms[CASE]['messages'],IDS,self.brief,RECORDING)
+        self.assertEqual(checked['facts'],[])
+        self.assertIsNone(research._clean_fact({key:value for key,value in FACT.items() if key!='mock'},'warfarin'))
     async def test_forged_source_and_extra_transcript_field_are_rejected(self):
         room=await self.recruit()
         request=self.backend.rooms[room.room_id]['messages'][0]
