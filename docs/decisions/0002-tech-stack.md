@@ -1,6 +1,6 @@
 # ADR-0002: Tech stack
 
-Status: Proposed for human sign-off (Erik, Jaiven), 2026-09-29. Derived from Jaiven's HALLWAY
+Status: Accepted 2026-09-29 (Erik merged PR #3; Jaiven's design-partner review on the PR: accept). Derived from Jaiven's HALLWAY
 build brief (PR #4, `docs/hackday/hallway-build-brief.md`) and the review on Linear JV-95.
 
 ## Context

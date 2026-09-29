@@ -6,11 +6,14 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Added
-- ADR-0002 proposed: HALLWAY stack (Python, Band + LangGraph, Crusoe direct, FastAPI, Neo4j, Vultr).
+- `docs/hackday/hallway-build-brief.md`: the HALLWAY build brief (idea, six-agent Band crew, Crusoe wiring,
+  self-serve tool map with delete tests, build order, demo script, definition of done). JV-95.
+- ADR-0002 accepted: HALLWAY stack (Python, Band + LangGraph, Crusoe direct, FastAPI, Neo4j, Vultr).
 - Neo4j section rewritten around the sponsor's hackathon starter (skills, hosted MCP, driver tools, neo4j-viz); Linear JV-104.
 - `.env.example`: Nebius, Brave, Merge.dev keys and per-integration MOCK flags; `agent_config.yaml` gitignored.
 
 ### Changed
+- `backlog.md`: JV-100 (Band) and JV-104 (Neo4j) moved into Now as Tier 1; JV-98 (DuploCloud) to Tier 2 candidates.
 - CLAUDE.md: GitHub blocks self-approval, so merging your own PR is the approval; product code lands in `hallway/`.
 
 ## [0.1.0] - 2026-09-29 (PR #1)
