@@ -40,3 +40,27 @@ def test_lineage_followups_history_and_band_url(monkeypatch):
     assert queries.band_room_url("room") is None
     monkeypatch.setenv("BAND_ROOM_URL_TEMPLATE", "https://band.example/{room_id}")
     assert queries.band_room_url("room") == "https://band.example/room"
+
+
+def _seed_identifier_agents(agents):
+    store.reset()
+    store.write_approved(
+        {},
+        [{"agent": name, "field": "patient_name"} for name in agents],
+        "pseudo-1",
+        "enc-1",
+    )
+
+
+def test_who_saw_identifiers_title_cases_lowercase_spine_names():
+    _seed_identifier_agents(["desk", "scribe", "critic"])
+    seen = queries.who_saw_identifiers()
+    assert seen["agents"] == ["Critic", "Desk", "Scribe"]
+    assert seen["matches_expected"] is True
+
+
+def test_who_saw_identifiers_partial_set_does_not_match():
+    _seed_identifier_agents(["Desk"])
+    seen = queries.who_saw_identifiers()
+    assert seen["agents"] == ["Desk"]
+    assert seen["matches_expected"] is False
