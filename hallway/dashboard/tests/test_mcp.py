@@ -1,5 +1,6 @@
 """MCP JSON-RPC tests. Neo4j is the in-memory store."""
 
+import asyncio
 import os
 import unittest
 from unittest.mock import patch
@@ -127,3 +128,27 @@ class McpHandleTests(unittest.TestCase):
             response.json()["result"]["serverInfo"]["name"],
             "safe-scribe-lineage",
         )
+
+    @unittest.skipUnless(TestClient is not None, "fastapi.testclient needs httpx")
+    def test_dispatch_runs_off_event_loop(self):
+        from hallway.dashboard.app import create_app
+
+        off_loop = []
+
+        def fake_handle(_message):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                off_loop.append(True)
+            else:
+                off_loop.append(False)
+            return {"jsonrpc": "2.0", "id": 1, "result": {}}
+
+        client = TestClient(create_app())
+        ping = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
+        with patch("hallway.dashboard.mcp.handle", fake_handle):
+            single = client.post("/mcp", json=ping)
+            batch = client.post("/mcp", json=[ping, ping])
+        self.assertEqual(single.status_code, 200)
+        self.assertEqual(batch.status_code, 200)
+        self.assertEqual(off_loop, [True, True, True])

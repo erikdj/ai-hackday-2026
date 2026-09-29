@@ -144,6 +144,7 @@ def handle(message: dict) -> dict | None:
 def mount(app):
     """Register POST/GET /mcp and GET /mcp/health. FastAPI imported lazily."""
     from fastapi import Request
+    from fastapi.concurrency import run_in_threadpool
     from fastapi.responses import JSONResponse, Response
 
     @app.post("/mcp")
@@ -156,12 +157,14 @@ def mount(app):
                 status_code=400,
             )
         if isinstance(payload, list):
-            results = [item for msg in payload if (item := handle(msg)) is not None]
+            results = await run_in_threadpool(
+                lambda: [item for msg in payload if (item := handle(msg)) is not None]
+            )
             if not results:
                 return Response(status_code=202)
             return JSONResponse(results)
         if isinstance(payload, dict):
-            result = handle(payload)
+            result = await run_in_threadpool(handle, payload)
             if result is None:
                 return Response(status_code=202)
             return JSONResponse(result)
