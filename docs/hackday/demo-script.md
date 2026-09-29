@@ -29,6 +29,28 @@ patient identifier trying to leave the room, and Neo4j records which agent saw w
       `hallway/fixtures/README.md`.
 - [ ] Time a full dry run. Target: upload to APPROVE under 90 seconds. Record the number.
 
+## Set the scene (45 seconds, before beat 1)
+
+Say this in your own words; it is the whole case.
+
+Nurses and doctors hand patients off to each other all day, by talking. "Mr. Callahan, born in
+fifty-two, is on a blood thinner and just started an antibiotic that interacts with it; someone
+should call his daughter about discharge." That spoken handoff is where things get lost: follow-ups
+with no owner don't happen, details get misremembered, and writing it all down takes time nobody
+has. Every hospital wants an AI scribe. Compliance says no, twice: the audio and the patient's
+identity would be shipped to a big cloud AI company, and afterwards nobody can prove which systems
+saw the name, the birthdate, the record number. "Trust us" is not an answer an auditor accepts.
+
+Safe Scribe is the scribe a compliance officer can say yes to. The audio stays on the laptop. A small
+team of agents works in a private room with a human nurse in it. One agent writes the summary and
+quotes the transcript for every line. A second agent, on a different AI model so it doesn't share
+the first one's blind spots, can block it: an unowned follow-up gets asked, not guessed; any patient
+identifier in the outgoing summary gets stopped. Only after approval does a pseudonymous summary
+leave the room, into a second room that never held the transcript, where it is filed as memory and
+the system writes down which agent touched which piece of information. Every patient today is
+synthetic. This is the second of four synthetic scenarios we wrote and voiced this morning, and it
+is the one already sitting in the graph.
+
 ## Two-minute demo
 
 | # | Time | Erik says / does | On screen | Sponsor | Fallback if not live |
@@ -40,7 +62,7 @@ patient identifier trying to leave the room, and Neo4j records which agent saw w
 | 4 | 1:05 | "Now the Critic, a different model family, also on Crusoe. The veto: a follow-up nobody owns, 'someone should call the daughter'. It does not guess an owner. It asks the room." Erik types `@Scribe @Critic I'll own it`. | VETO rev 1 (unowned follow-up `fu-daughter-call`), OWNER_REQUEST, Erik's reply, BRIEF rev 2 with owner `Erik Jones` and his message id as provenance | Crusoe (2nd family), Band human-in-room | None needed; observed live in `a9806e53`. |
 | 5 | 1:25 | "The Critic also scans the outbound brief for any patient identifier: name, date of birth, record number, phone, address. Scribe worked from a pseudonymous id, so the gate passes and the brief is approved. When a name does slip into a brief, this is what happens." Runs `python -m unittest hallway.tests.test_spine -k identifier -v` in the terminal. | BRIEF rev 2 (owner recorded), VERDICT rev 2 APPROVE, APPROVAL rev 2 in the room; terminal shows the identifier-gate tests vetoing briefs that carry a name, a spoken DOB, an MRN. | Band gate, Crusoe | None needed. Live in case `a9806e53` at 13:0x: VETO 1 → owner reply → BRIEF 2 → APPROVE 2. The identifier veto never fires on `handoff_2` because Scribe never leaks; do not stage a leak to make it fire. |
 | 6 | 1:40 | "Only now does anything leave the room, and only into a separate approved room that has never held the transcript. Grapher writes memory and lineage to Neo4j." Switches to dashboard: `who_saw_identifiers`. | Room `Safe Scribe approved <id>` with Critic, Grapher, Erik. Dashboard answers **Desk, Scribe, Critic**. | Band boundary, Neo4j Aura | If phase 2 was not observed live: before recording, the contributor session re-runs its verified `Neo4jStore` probe so Aura holds one encounter with lineage, then show the dashboard answer and say "the Grapher's delivery from the approved room is gated and not in this recording; the writer it calls and this query were verified against Aura separately today." |
-| 7 | 1:52 | "The same lineage question is exposed as an MCP tool and registered in the DuploCloud studio, so a compliance agent can ask it." | DuploCloud studio: MCP server "Safe Scribe", scope `safe-scribe-lineage`; a `tools/call` answer | DuploCloud | If the studio tab misbehaves: `curl` the `/mcp` endpoint on 8090 and show the same answer. |
+| 7 | 1:52 | "The same lineage question is exposed as an MCP tool and registered in the DuploCloud studio, so a compliance agent can ask it." (Live, or cut to the 20-second clip recorded at 14:0x if the devkit is stopped.) | DuploCloud studio: MCP server "Safe Scribe", scope `safe-scribe-lineage`; a `tools/call` answer | DuploCloud | If the studio tab misbehaves: `curl` the `/mcp` endpoint on 8090 and show the same answer. |
 | 8 | 2:00 | "Audio never left the laptop. Text touched only Crusoe. Nothing identifiable crossed the boundary. Band enforced it, Neo4j proves it." | README tool table | All | |
 
 ## Three-minute technical dive
@@ -115,6 +137,22 @@ identifier gate and an access ledger. Certification is a program, not a hackday.
 Similarweb legitimacy fact for a spoken referral organization), gated off for this recording
 because a failed recruitment had no retry path until the last hour. Live Brave and Similarweb
 facts are in the ledger; the doctor-patient fixture `visit_1.wav` is the scenario it serves.
+
+## Tool-by-tool proof (technical dive, 2 minutes)
+
+Walk this table top to bottom. For each tool: what it does here, where it is on the tape, and the
+proof that it is real work and not a logo.
+
+| Tool | Job in Safe Scribe | Where you see it | Proof it is real |
+| --- | --- | --- | --- |
+| **Crusoe** | Every agent's thinking. Scribe on GLM-5.3, Desk and Critic on Qwen3.8-27B, two model families by rule. | Desk log line with provider and model id on every call; the brief and the veto appearing in the room. | `doppler run -- bash scripts/check-crusoe.sh` lists the live catalog from `api.inference.crusoecloud.com` and completes a chat; pins came from a 13-model tool-calling probe plus two live runs (Flash produced no brief, GLM-5.3 did). If Crusoe is down the case pauses; there is no other provider in the code. |
+| **Band** | The rooms and the door policy. Case room holds Desk, Scribe, Critic and the nurse; the approved room holds Critic, Grapher and the nurse and never the transcript. Vetoes, the owner request and the human reply are Band messages. | Room list: `Safe Scribe case <id>`, `Safe Scribe approved <id>`. The veto, your `I'll own it`, the approve, all in the room. | Roster is checked on every write; an unexpected participant raises. Case `a9806e53` shows the full loop; case `84cfeb33` shows the approved room being created only after a digest-matched approve. Open the approved room's history on tape: no transcript, no name. |
+| **Neo4j** | Memory and the audit trail. Pseudonymous patient, encounter, clinical nodes, and `(Agent)-[:ACCESSED]->(Field)` edges from the access manifest. | Dashboard `/lineage/who-saw-identifiers` answering **Critic, Desk, Scribe**; Aura browser showing `p_83cd10…`, the `handoff_2` patient. | The nodes on Aura were written by the Grapher from the approved room, not seeded. Second encounter for the same pseudo id MERGEs (`merged: True`); merge is by pseudo id only, never similarity. |
+| **DuploCloud** | The audit question exposed as an MCP tool so a compliance agent can ask it. | Studio ticket `extensiondev-1`: the agent selects `mcp__Safe_Scribe__who_saw_identifiers`, you approve, it answers Critic, Desk, Scribe. | Server, provider, scope and ticket registered through the studio admin API; the devkit agent completed the MCP handshake against the live dashboard. The tool result is the same query as the dashboard, from Aura. |
+| **Brave** | One sourced fact per drug named in the handoff, for the Critic to verify by URL. | Technical dive only: `doppler run -- python -m hallway.research.brave ciprofloxacin`. | Live result today: drugs.com interaction page in 1.7 s. The research room that recruits the Researcher is built and tested, gated off for this recording (say so). |
+| **Similarweb** | Legitimacy fact for a referral organization spoken in a visit. | Technical dive only, on the doctor-patient fixture `visit_1`: "Sunrise Home Health" → unranked, ~890 visits/month. | Live result today under `doppler run`; spoken-domain extraction is name-anchored and fails closed. |
+| faster-whisper | Transcription on the laptop. Not a sponsor. | Beat 1: the audio clip, then the log line `0 bytes of audio left this machine`. | Verified on `handoff_2.wav`: the planted name, DOB and unowned line survive. |
+| Nebius, Vultr | Attempted, not integrated. | Not on tape. | Say it if asked; do not list them as integrations. |
 
 ## Sponsor status to state on tape (as of 14:00 PDT freeze)
 
