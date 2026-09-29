@@ -69,8 +69,9 @@ class Neo4jStore:
             row for row in _rows(brief.get("follow_ups"), ("text", "quote", "status", "owner"))
             if row.get("text")
         ]
-        for row in followups:
+        for index, row in enumerate(followups):
             row["owner"] = row.get("owner") or ""
+            row["key"] = f"{encounter_id}:{index}"
         findings = [row for row in findings if row.get("text")]
         accesses = [
             {k: entry.get(k) for k in ("agent", "field", "purpose", "ts")}
@@ -135,9 +136,9 @@ class Neo4jStore:
             )
             tx.run(
                 "MATCH (e:Encounter {id:$eid}) UNWIND $followups AS fu "
-                "MERGE (e)-[:HAS_FOLLOWUP]->(c:Commitment {text:fu.text}) "
-                "SET c.quote = coalesce(fu.quote, ''), "
-                "c.status = coalesce(fu.status, ''), c.owner = coalesce(fu.owner, '') "
+                "MERGE (e)-[:HAS_FOLLOWUP]->(c:Commitment {key:fu.key}) "
+                "SET c.text = fu.text, c.quote = fu.quote, "
+                "c.status = fu.status, c.owner = fu.owner "
                 "WITH c, fu WHERE fu.owner <> '' "
                 "MERGE (s:Staff {name:fu.owner}) MERGE (c)-[:OWNED_BY]->(s)",
                 eid=encounter_id,
@@ -146,8 +147,8 @@ class Neo4jStore:
             tx.run(
                 "MATCH (e:Encounter {id:$eid}) UNWIND $accesses AS row "
                 "MERGE (a:Agent {name:row.agent}) MERGE (f:Field {name:row.field}) "
-                "MERGE (a)-[r:ACCESSED {field:row.field}]->(f) "
-                "SET r.purpose = coalesce(row.purpose, ''), r.ts = coalesce(row.ts, '') "
+                "MERGE (a)-[r:ACCESSED {field: row.field, purpose: coalesce(row.purpose, ''), "
+                "ts: coalesce(row.ts, '')}]->(f) "
                 "MERGE (e)-[:TOUCHED]->(f)",
                 eid=encounter_id,
                 accesses=accesses,
