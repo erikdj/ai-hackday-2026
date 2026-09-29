@@ -1,18 +1,26 @@
-# HANDOFF — phase 1: the case room
+# Safe Scribe by TrustEdge AI — phase 1: the case room
 
-A nurse-to-nurse shift handoff becomes a Band case room where agents on Crusoe argue before
-anything leaves the room. Phase 1 is the spine only: Desk, Scribe, Critic and the human charge
+Safe Scribe is designed to turn a nurse-to-nurse shift handoff into a Band case room where agents
+on Crusoe review evidence before approval. Phase 1 implements the spine only: Desk, Scribe, Critic and the human charge
 nurse in one Band room, with deterministic ownership and identifier checks and an approval that names the exact brief
-revision. Nothing downstream exists yet.
+revision. Downstream execution is not connected to this phase.
 
 **Every patient in this repository is synthetic.** Names, dates of birth, record numbers and phone
 numbers in `hallway/fixtures/` are invented (see `hallway/fixtures/README.md`). Say so on screen.
+
+## Verified status
+
+Real Crusoe function calling has passed. Live Band message parsing, case creation and case reading
+were verified with the wire-format fix in `550fdd7`. The Scribe's GLM and Kimi inference attempts
+then timed out through retries: no BRIEF, veto or approval was observed. The live demo failed its
+90-second budget and remains red. The offline test suite has **52 passing tests**; those tests do
+not establish live end-to-end success.
 
 ## What phase 1 is, and is not
 
 | Is | Is not |
 | --- | --- |
-| Band is the only coordination channel: transcript, brief, owner request, verdict and approval are all Band messages, authenticated by sender id. Delete Band and there is no room, no roster, no veto. | A live run. This checkout has no configured live credentials. Authenticated Band/Crusoe execution remains unverified. |
+| Band is the only coordination channel: transcript, brief, owner request, verdict and approval are all Band messages, authenticated by sender id. Delete Band and there is no room, no roster, no veto. | A completed live workflow. Real Crusoe tool calling and Band case creation/read are verified; Scribe timeouts prevented a BRIEF, veto and approval. |
 | Critic checks are code, explained by the model: every quote is a normalized substring of the transcript; every pending follow-up has an owner; no direct identifier from the transcript appears anywhere in the outbound JSON. | A de-identification system. The identifier guard is a regex set plus an identifier list pulled from the transcript. It is tuned to the synthetic fixtures. It is not HIPAA anything. |
 | Tests exercise ownerless follow-up and identifier rejection before revision-bound approval. Live veto count/order depends on the actual extraction; no errors are fabricated to stage a second veto. | The research room, the approved (boundary) room, Grapher, Closer, Neo4j lineage, Brave. Those are phases 2 and 3 (JV-106, JV-107). The agent entrypoints exist, but their downstream execution is disabled in phase 1. |
 | An owner for an unowned follow-up comes only from a human's message in the room, recorded with that message id as provenance. Otherwise the item stays `unresolved` and the approval lists it. | Auto-assignment. The model never invents an owner. |
@@ -42,14 +50,14 @@ numbers in `hallway/fixtures/` are invented (see `hallway/fixtures/README.md`). 
 
 | Tool | Phase-1 role | Code | State at this commit |
 | --- | --- | --- | --- |
-| Crusoe | inference for Desk, Scribe, Critic | `hallway/common/llm.py` | wired, unkeyed, untested live |
-| Band | room, roster, messages, events, gate | `hallway/common/room.py`, `hallway/common/runtime.py` | wired against band-sdk 3.2.1, unkeyed, untested live |
+| Crusoe | inference for Desk, Scribe, Critic | `hallway/common/llm.py` | live function calling passed; Scribe GLM/Kimi retries timed out |
+| Band | room, roster, messages, events, gate | `hallway/common/room.py`, `hallway/common/runtime.py` | live wire parsing, case creation and case read verified (`550fdd7`); full review loop not observed |
 | Neo4j, Nebius, Brave, OpenRouter, Vultr | none in phase 1 | deferred | see `docs/hackday/integration-ledger.md` |
 | Merge.dev | cut at the pivot | none | not attempted |
 | Plaud, DuploCloud, UserTesting | cut | none | not attempted, need a device or a provisioned tenant |
 
-The ledger in `docs/hackday/integration-ledger.md` is the source of truth for verified / mocked /
-attempted / deferred. Do not read "wired" above as "works".
+The ledger in `docs/hackday/integration-ledger.md` tracks verified / mocked / attempted / deferred
+integrations. Passing isolated live calls does not mean the complete demo works.
 
 ## Run
 
