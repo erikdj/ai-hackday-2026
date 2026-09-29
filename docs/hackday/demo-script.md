@@ -35,7 +35,7 @@ asked.
 | Band | No room, no roster, no gate, no veto, no boundary. There is no fallback orchestrator. |
 | Neo4j | No memory across encounters and no proof of who saw what. |
 | Brave | Researcher has nothing to post; Critic cannot verify enrichment. |
-| Nebius | Same patient across encounters is not recognised (tier 2). |
+| Nebius | No "possible prior encounter" hints; identity itself is the locally assigned pseudo_id, never similarity (tier 2). |
 | OpenRouter | No ask-the-graph on the dashboard, no last-resort fallback (tier 2). |
 | Vultr | Demo rides on venue wifi and a laptop (tier 2). |
 

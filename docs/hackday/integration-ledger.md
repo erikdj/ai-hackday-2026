@@ -13,7 +13,7 @@ Last updated: 2026-09-29 11:15 PDT (post-pivot to HANDOFF).
 | Band | 1 | deferred | SDK installed on Jaiven's laptop; no agents registered | Jaiven (JV-105), Erik (JV-107) | Six remote agents at app.band.ai/agents plus Erik's second account for the Closer boundary room (core since the pivot). |
 | Neo4j | 1 | deferred | recipe in docs (JV-104) | Jaiven (JV-106) | Aura Free instance not created yet. Cut line 2. Clinical nodes plus ACCESSED lineage edges; canned query "which agents saw identifiers?" (expected: Desk, Scribe, Critic). |
 | OpenRouter | 2 | deferred | | Jaiven (JV-108) | Dashboard ask-the-graph over the pseudonymized graph only. Never a fallback for transcript-bearing agents (they fail closed). |
-| Nebius | 2 | deferred | | Jaiven (JV-107) | Embeddings for same-patient-across-encounters on pseudonymous fields. |
+| Nebius | 2 | deferred | | Jaiven (JV-107) | Embeddings suggest possible prior encounters on pseudonymous fields; never merge. Identity is Desk's local pseudo_id. |
 | Brave | 2 | deferred | | Jaiven (JV-107) | Researcher: one drug interaction/guideline fact with URL; query is the drug name only. |
 | Merge.dev | cut | attempted | | | Cut at the 11:10 pivot: no healthcare fit. |
 | Vultr | 2 | deferred | | Jaiven (JV-108) | Hosts Scribe, Critic, Grapher, Closer, dashboard. Desk + transcription + upload page stay on the laptop so no audio leaves it. |
