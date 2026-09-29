@@ -1,4 +1,4 @@
-# Demo script: HANDOFF
+# Demo script: TrustEdge AI Safe Scribe (working name HANDOFF)
 
 Linear JV-102. Judging is live. Two minutes on screen, then questions. Source: the HANDOFF
 brief (`docs/hackday/handoff-build-brief.md`, sections 2 and 8) and the pivot decision in the
@@ -19,7 +19,7 @@ Say once, early: the patient is synthetic.
 | 1 | Drops the `.wav` on the upload page, which runs on this laptop. "Zero bytes of audio left this laptop." | Desk transcribes on-device and posts only text into the Band room; log line with the Crusoe model id. | Crusoe, faster-whisper (local) | Log shows local transcription; the Vultr compose file has no Desk |
 | 2 | "Scribe extracts the handoff brief. Every item carries a verbatim quote." | `case-<slug>` room opens. Scribe posts the HANDOFF brief. Execution events stream. | Band, Crusoe | Quotes are substrings of the transcript on screen |
 | 3 | "A drug was named, so Scribe opens a research room and recruits a researcher. It sees only the drug names." | Room list grows: `case-…-research` appears with Researcher. It posts one interaction or guideline fact with a URL; Scribe relays it. | Band runtime recruitment, Brave | URL opens; research room history shows drug names only |
-| 4 | "Now the Critic, on a different model family. Two vetoes." Erik, as charge nurse, types "I'll own it" in the room when asked. | VETO 1: follow-up #2 has no owner. Scribe asks the room; Erik answers; Scribe records the owner with that message as provenance. VETO 2, the hero: patient name and DOB in the outbound brief. Scribe redacts. APPROVE revision 3. The approved room appears with Grapher and Closer; the redacted brief and the access manifest cross into it. The case room's roster never changes. | Band veto and gate, human in the room, Crusoe (two model ids) | The identifiers and the unowned follow-up are deliberate lines in the recording; the owner comes from a human, never invented |
+| 4 | "Now the Critic, on a different model family. Two vetoes." Erik, as charge nurse, types exactly `@Scribe @Critic I'll own it` in the room when asked (Band delivers only to mentioned agents). | VETO 1: follow-up #2 has no owner. Scribe asks the room; Erik answers; Scribe records the owner with that message as provenance. VETO 2, the hero: patient name and DOB in the outbound brief. Scribe redacts. APPROVE revision 3. The approved room appears with Grapher and Closer; the redacted brief and the access manifest cross into it. The case room's roster never changes. | Band veto and gate, human in the room, Crusoe (two model ids) | The identifiers and the unowned follow-up are deliberate lines in the recording; the owner comes from a human, never invented |
 | 5 | "Grapher writes memory and lineage, from the approved room, off the manifest. It never saw the transcript." | Neo4j nodes plus ACCESSED edges. Dashboard query "which agents saw identifiers?" answers Desk, Scribe, Critic. Grapher, Researcher, Closer are absent. | Neo4j | Live query result on screen |
 | 6 | "Closer lives in the approved room. It only ever gets the redacted brief; Band's room membership is the boundary." | Closer drafts the discharge follow-up from the redacted brief only. Open the approved room's history: no transcript, no name. | Band enforced boundary | Room history on screen (stretch: Closer under a second account) |
 | 7 | Close: "Audio never left the laptop. Text only touched Crusoe. Nothing identifiable crossed the boundary. Band enforced it, Neo4j proves it. Seven sponsor tools, each with a delete test in the README, all self-serve, built by two people and two agents in four hours." | README tool table with delete tests. | All | `make demo` output |
@@ -43,12 +43,13 @@ Merge.dev was cut at the pivot (no healthcare fit). Plaud: no device.
 
 ## Cold-start checklist (run twice before judging)
 
-- [ ] `.env` filled; `./scripts/check-crusoe.sh` and `python3 scripts/check_crusoe_tools.py --max 20` pass; the three model ids match `common/llm.py`
+- [ ] `doppler run -- ./scripts/check-crusoe.sh` and `doppler run -- python3 scripts/check_crusoe_tools.py --max 20` pass; `CRUSOE_MODEL_STRONG/FAST/CRITIC` in Doppler are zai-org/GLM-5.3, Qwen/Qwen3.8-27B, deepseek-ai/DeepSeek-V4-Pro (overseer probe on JV-97)
 - [ ] Six Band agents connected; stale case rooms archived (stretch only: Closer on Erik's second account)
 - [ ] Neo4j Aura instance awake (free tier pauses); a prior encounter for the synthetic patient loaded so the lineage and history queries return rows
 - [ ] Brave key live; `MOCK_*` all 0 for tier 1
 - [ ] Vultr VM up, `docker compose ps` all Up; dashboard URL bookmarked (laptop fallback ready)
-- [ ] Phone recording ready with the deliberate full name + DOB early and the unowned "someone should call the daughter about discharge"; `fixtures/handoff_2.txt` is the same content
+- [ ] `hallway/fixtures/handoff_2.wav` and `handoff_2.txt` ready (synthetic, xAI voices); the planted lines are the full name + DOB in line one and "Someone should call the daughter about discharge, she's the main contact."
+- [ ] Erik has practised typing `@Scribe @Critic I'll own it` in a Band room; the mentions must resolve
 - [ ] `make demo` green in the last 15 minutes
 - [ ] Recorded run (screen capture) saved locally in case wifi or a sponsor API fails
 
