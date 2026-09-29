@@ -72,5 +72,13 @@ def llm(role: str) -> ChatOpenAI:
     options = dict(base_url=endpoint, api_key=key, timeout=10, max_retries=2,
                    disable_streaming=True, use_responses_api=False,
                    max_tokens=2048 if role in ('scribe', 'researcher', 'closer') else 1024)
+    # GLM-5.3 is always reasoning-enabled; upstream recommends low for latency:
+    # https://docs.z.ai/guides/llm/glm-5.3 (also probed on Crusoe managed inference).
+    primary_options=dict(options)
+    fallback_options=dict(options)
+    if model == 'zai-org/GLM-5.3':
+        primary_options['reasoning_effort']='low'
+    if fallback == 'zai-org/GLM-5.3':
+        fallback_options['reasoning_effort']='low'
     return CrusoeChat(model=model, hallway_role=role,
-                      crusoe_fallback=ChatOpenAI(model=fallback, **options), **options)
+                      crusoe_fallback=ChatOpenAI(model=fallback, **fallback_options), **primary_options)

@@ -82,6 +82,14 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                     self.assertEqual(client.max_retries,2)
                     self.assertEqual(str(client.openai_api_base),'https://api.inference.crusoecloud.com/v1')
 
+    def test_low_reasoning_only_for_exact_verified_glm_in_either_position(self):
+        for primary,secondary in [('zai-org/GLM-5.3','secondary'),('primary','zai-org/GLM-5.3'),('primary','secondary')]:
+            env={**ENV,'CRUSOE_MODEL_STRONG':primary,'CRUSOE_MODEL_FALLBACK':secondary}
+            with patch.dict(os.environ,env,clear=True):
+                model=llm('scribe')
+                self.assertEqual(model.reasoning_effort,'low' if primary=='zai-org/GLM-5.3' else None)
+                self.assertEqual(model.crusoe_fallback.reasoning_effort,'low' if secondary=='zai-org/GLM-5.3' else None)
+
     def test_distinct_secondary_is_required(self):
         with patch.dict(os.environ, {**ENV, 'CRUSOE_MODEL_FALLBACK': 'primary'}, clear=True):
             with self.assertRaisesRegex(ValueError, 'distinct Crusoe fallback'):
