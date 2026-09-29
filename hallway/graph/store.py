@@ -66,7 +66,7 @@ class MemoryStore:
             for item in encounter["follow_ups"]:
                 owner = item.get("owner") or ""
                 text = item.get("text")
-                if item.get("status") == "owned" and owner:
+                if owner and item.get("status") != "unresolved":
                     grouped.setdefault(owner, []).append(text)
                 else:
                     unresolved.append(text)

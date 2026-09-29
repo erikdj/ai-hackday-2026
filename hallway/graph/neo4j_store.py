@@ -169,7 +169,7 @@ class Neo4jStore:
         records = self._read(
             "MATCH (c:Commitment) "
             "OPTIONAL MATCH (c)-[:OWNED_BY]->(s) "
-            "WITH CASE WHEN c.status = 'owned' AND coalesce(s.name, '') <> '' "
+            "WITH CASE WHEN coalesce(c.status, '') <> 'unresolved' AND coalesce(s.name, '') <> '' "
             "THEN s.name ELSE 'unresolved' END AS owner, c "
             "RETURN owner, collect(c.text) AS texts"
         )

@@ -117,3 +117,21 @@ def test_write_and_read_share_backend_when_neo4j_configured(monkeypatch):
     assert neo4j_store.get_store() is graph_store._store()
     assert queries.who_saw_identifiers()["agents"] == ["Stub"]
     assert calls  # recorded on the shared stub, not a second backend
+
+
+def test_pending_with_owner_is_owned_and_pending_without_owner_is_unresolved():
+    """The spine emits status pending/unresolved, never "owned" (PR #8 integration contract)."""
+    brief = {
+        "follow_ups": [
+            {"owner": "night nurse", "text": "Repeat INR 06:00", "status": "pending"},
+            {"owner": "", "text": "Call daughter about discharge", "status": "unresolved"},
+            {"owner": "Maria", "text": "Home health referral", "status": "pending"},
+            {"owner": "", "text": "Nutrition consult", "status": "pending"},
+        ]
+    }
+    store.write_approved(brief, [], "p-1", "e-1")
+    assert store.open_followups_by_owner() == {
+        "night nurse": ["Repeat INR 06:00"],
+        "Maria": ["Home health referral"],
+        "unresolved": ["Call daughter about discharge", "Nutrition consult"],
+    }
