@@ -61,6 +61,7 @@ Closer is deferred.
 | Brave | Drug facts (`research/brave.py`, `common/research_room.py`) | Three sourced facts in research room `6ebcdfae-eb57-4365-b030-10fe3ccaa9f3`; disabled only in recording preset. |
 | Neo4j | Graph persistence and processing provenance (`graph/neo4j_store.py`) | Real receipt `e02d4a4b-e543-43b1-866e-70358731a12e`; this run did not merge a previous encounter. |
 | Vultr | Compose deployment configuration | Deployment not established by the evidence above. |
+| DuploCloud | Studio agent calls the dashboard MCP lineage tool (`dashboard/mcp.py`) | Separately verified on Erik's WSL2 trial devkit: after human approval, `who_saw_identifiers` returned Critic, Desk and Scribe from live Aura. See the [integration ledger](../docs/hackday/integration-ledger.md); this is MCP use, not deployment of the Safe Scribe stack. |
 | Other sponsors | See Attempted / cut and the integration ledger | No additional sponsor-use claim from this run. |
 
 ## Run
@@ -134,7 +135,8 @@ Agents read `fixtures/<name>.txt` by name; `handoff_2` is the default.
 ## Attempted / cut
 
 - Merge.dev: cut at the pivot, no healthcare fit.
-- Plaud, DuploCloud, UserTesting: not attempted; device or provisioned tenant required.
+- Plaud: cut; no device was available. Case `19ec` used text intake.
+- UserTesting: not used.
 - Emit.THOUGHTS: not supported by the Band LangGraph adapter (`SUPPORTED_EMIT` is tool calls and
   usage); explicit `thought` events are posted through `band_send_event` at each protocol step instead.
 

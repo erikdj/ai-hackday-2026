@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- JV-116: document the verified `19ec` Band veto/ownership repair/approval and real Aura receipt, distinguish processing provenance from read proof, and keep under-90-second rehearsals pending. Correct the local runbook sponsor status to include Erik's separately verified DuploCloud WSL2/MCP/Aura query without claiming stack deployment.
 - Feature-freeze docs sweep (14:00 PDT, overseer): ledger, README tool table, DuploCloud section with WSL2 notes, demo script (audio clip in beat 1, judge Q&A with the plain-language case and the Band/Crusoe exposure answer, sponsor say/do-not-say) all match what was observed live today.
 - Demo script beat 5 and README step 4 corrected after live case a9806e53 (JV-102, overseer): the identifier gate passes because Scribe works from a pseudonymous id; the veto is shown from the identifier-gate tests, never staged.
 - Demo script rewritten for the recorded submission (JV-102, overseer): eight timed beats with a fallback line per beat, three-minute technical dive outline, pre-record checklist, sponsor say/do-not-say table, rehearsal log. Matches what was observed live by 13:05 PDT.
