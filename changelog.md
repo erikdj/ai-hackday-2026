@@ -10,6 +10,7 @@ milestones rather than releases.
 
 ### Changed
 - Docs claim audit at the code freeze (JV-102): merged-PR count corrected to forty-eight in README and demo script; README test count states 140 unittest (135 under `hallway/tests` + 5 under `scripts/`) plus 44 pytest; Researcher listed on the STRONG tier (GLM-5.3) per `hallway/common/llm.py`; fixture `.script` files pointed at `scripts/fixtures/`.
+- JV-116: document the verified `19ec` Band veto/ownership repair/approval and real Aura receipt, distinguish processing provenance from read proof, and keep under-90-second rehearsals pending. Correct the local runbook sponsor status to include Erik's separately verified DuploCloud WSL2/MCP/Aura query without claiming stack deployment.
 - Demo script: beat 5 and the pre-flight checklist name the repo `.venv` (built with uv) instead of the deleted `../ai-hackday-pr8` venv; ledger: Crusoe and DuploCloud rows record the live compliance narrative and the four-tool studio listing (JV-102, JV-119).
 - Submission text (`docs/hackday/submission-readme.md`) matches the live state: Closer marked as next, Crusoe compliance narrative in step 6, run line and fixtures corrected.
 - README shortened: per-vendor HIPAA detail moved to `docs/compliance/hipaa.md`, one section on today's data path and what changes in production, new 'Crusoe: what it does today and where it grows' section including the compliance narrative (Erik's ask).
