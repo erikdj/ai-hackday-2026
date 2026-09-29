@@ -5,8 +5,17 @@ milestones rather than releases.
 
 ## [Unreleased]
 
+### Added
+- Compliance narrative written by a Crusoe model from lineage metadata only: `GET /lineage/narrative` on the judge dashboard, MCP tool `compliance_narrative` for the DuploCloud studio, shown on the dashboard page with the exact payload sent (agent names, identifier field names, counts; never a transcript, brief or identifier value). Fails closed on Crusoe unavailability. (JV-119, 20-minute freeze exception authorized by Erik.)
+
 ### Changed
 - JV-116: document the verified `19ec` Band veto/ownership repair/approval and real Aura receipt, distinguish processing provenance from read proof, and keep under-90-second rehearsals pending. Correct the local runbook sponsor status to include Erik's separately verified DuploCloud WSL2/MCP/Aura query without claiming stack deployment.
+- Demo script: beat 5 and the pre-flight checklist name the repo `.venv` (built with uv) instead of the deleted `../ai-hackday-pr8` venv; ledger: Crusoe and DuploCloud rows record the live compliance narrative and the four-tool studio listing (JV-102, JV-119).
+- Submission text (`docs/hackday/submission-readme.md`) matches the live state: Closer marked as next, Crusoe compliance narrative in step 6, run line and fixtures corrected.
+- README shortened: per-vendor HIPAA detail moved to `docs/compliance/hipaa.md`, one section on today's data path and what changes in production, new 'Crusoe: what it does today and where it grows' section including the compliance narrative (Erik's ask).
+- Root README rewritten as the judges' pitch and repo directory (what, why each tool, the exposure/BAA table per vendor, what is built, what comes next); agent instructions moved to `docs/agent-instructions.md`; `docs/README.md` table of contents; new `docs/compliance/hipaa.md` with the vendor-terms readout as read on 2026-09-29 (overseer, Erik's ask).
+- Demo script: 'Set the scene' opening and tool-by-tool proof walkthrough (Erik's ask); ledger: Neo4j live Grapher write on Aura and DuploCloud studio call verified (JV-102, JV-98, JV-106).
+- Judge Q&A and README careful-wording updated with what Crusoe's and Band's public terms actually say about HIPAA/BAA (JV-102, overseer, sourced 2026-09-29).
 - Feature-freeze docs sweep (14:00 PDT, overseer): ledger, README tool table, DuploCloud section with WSL2 notes, demo script (audio clip in beat 1, judge Q&A with the plain-language case and the Band/Crusoe exposure answer, sponsor say/do-not-say) all match what was observed live today.
 - Demo script beat 5 and README step 4 corrected after live case a9806e53 (JV-102, overseer): the identifier gate passes because Scribe works from a pseudonymous id; the veto is shown from the identifier-gate tests, never staged.
 - Demo script rewritten for the recorded submission (JV-102, overseer): eight timed beats with a fallback line per beat, three-minute technical dive outline, pre-record checklist, sponsor say/do-not-say table, rehearsal log. Matches what was observed live by 13:05 PDT.

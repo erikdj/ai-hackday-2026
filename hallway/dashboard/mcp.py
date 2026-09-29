@@ -32,6 +32,15 @@ TOOLS = [
         },
     },
     {
+        "name": "compliance_narrative",
+        "description": (
+            "Three-sentence plain-language compliance statement written by a Crusoe model "
+            "from lineage metadata only (agent names, identifier field names, counts). "
+            "Returns the narrative and the exact payload the model received."
+        ),
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "patient_history",
         "description": "Prior encounters for a pseudonymous patient id (never a real identifier).",
         "inputSchema": {
@@ -80,9 +89,18 @@ def _followups(arguments):
 
 def _dispatch_tool(name, arguments):
     if name == "who_saw_identifiers":
-        return queries.who_saw_identifiers()
+        data = queries.who_saw_identifiers()
+        return {
+            k: v
+            for k, v in data.items()
+            if k not in ("expected_on_demo", "matches_expected")
+        }
     if name == "open_followups_by_owner":
         return _followups(arguments)
+    if name == "compliance_narrative":
+        from hallway.dashboard import narrative
+
+        return narrative.compliance_narrative()
     if name == "patient_history":
         pseudo_id = arguments.get("pseudo_id") if isinstance(arguments, dict) else None
         if not isinstance(pseudo_id, str) or not pseudo_id:

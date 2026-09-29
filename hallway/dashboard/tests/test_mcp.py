@@ -64,7 +64,7 @@ class McpHandleTests(unittest.TestCase):
         names = [tool["name"] for tool in response["result"]["tools"]]
         self.assertEqual(
             names,
-            ["who_saw_identifiers", "open_followups_by_owner", "patient_history"],
+            ["who_saw_identifiers", "open_followups_by_owner", "compliance_narrative", "patient_history"],
         )
 
     def test_who_saw_matches_queries(self):
@@ -78,7 +78,16 @@ class McpHandleTests(unittest.TestCase):
         )
         body = response["result"]
         self.assertFalse(body["isError"])
-        self.assertEqual(body["structuredContent"], self.queries.who_saw_identifiers())
+        expected = {
+            k: v
+            for k, v in self.queries.who_saw_identifiers().items()
+            if k not in ("expected_on_demo", "matches_expected")
+        }
+        self.assertEqual(body["structuredContent"], expected)
+        text = body["content"][0]["text"]
+        for key in ("expected_on_demo", "matches_expected"):
+            self.assertNotIn(key, body["structuredContent"])
+            self.assertNotIn(key, text)
 
     def test_followups_owner_filter(self):
         response = self.mcp.handle(

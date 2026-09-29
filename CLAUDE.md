@@ -118,11 +118,14 @@ not write the code, run locally, before the PR opens.
 
 ```
 CLAUDE.md                      this file
-README.md                      project overview and quick start
+README.md                      the pitch for judges and the repo directory
 backlog.md / changelog.md      what is next / what shipped (update in every PR)
 .env.example                   every credential the project needs, blank
 .github/                       PR template, informational CI
-docs/hackday/                  event brief, sponsor integrations, demo script
+docs/README.md                 table of contents for every document
+docs/agent-instructions.md     how agents work here (short form of this file)
+docs/compliance/hipaa.md       HIPAA posture, vendor terms, gaps, production path
+docs/hackday/                  event brief, sponsor integrations, demo script, ledger, submission text
 docs/decisions/                ADRs (0001 rules, 0002 tech stack)
 docs/reference/duplocloud-devkit/  vendored devkit hackday docs (Apache-2.0)
 scripts/                       stack-agnostic helper scripts (Crusoe smoke test)

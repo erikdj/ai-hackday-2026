@@ -31,10 +31,12 @@ is the version of an AI scribe that a compliance officer can say yes to.
    number. The Critic approves an exact brief revision.
 5. Only then are the downstream agents let in, and only into a separate **approved room** that has
    never contained the transcript. **Grapher** writes the brief to **Neo4j** as a pseudonymous
-   patient record plus an access-lineage graph. **Closer** drafts the discharge follow-up from the
-   redacted brief alone.
+   patient record plus an access-lineage graph. (A Closer that drafts the discharge follow-up from
+   the redacted brief is the next agent for that room; not built today.)
 6. The dashboard answers the compliance question live: *which agents saw identifiers?* The
-   answer is Desk, Scribe, Critic. Nothing downstream.
+   answer is Desk, Scribe, Critic. Nothing downstream. A Crusoe model then writes the three-sentence
+   statement a privacy officer reads, from agent names, field names and counts only, with the exact
+   payload shown beside it. Both are MCP tools in the DuploCloud studio, called under human approval.
 
 Delete Band and there is no room, no roster, no gate, no veto. Delete Crusoe and no agent has a
 brain. Delete Neo4j and there is no memory across encounters and no proof of who saw what.
@@ -52,7 +54,7 @@ laptop                              Band (coordination)                 Crusoe (
                                    redacted brief + access manifest only
                                    ┌────────────▼─────────────┐        ┌──────────────────┐
                                    │ approved room            │ ─────► │ Neo4j Aura       │
-                                   │   Grapher → Closer       │        │ patient (pseudo) │
+                                   │   Grapher (Closer: next) │        │ patient (pseudo) │
                                    └──────────────────────────┘        │ ACCESSED lineage │
                                                                        └──────────────────┘
 ```
@@ -76,10 +78,16 @@ integration.
 
 ## What we are careful to say
 
+Full compliance posture, vendor terms and gaps: `docs/compliance/hipaa.md`. Pitch and directory: the root `README.md`.
+
 - Every patient in the demo is synthetic. Names, dates of birth, record numbers, and phone
   numbers are invented.
 - The identifier gate is a programmatic check plus model judgment on the outbound brief. It is
   a boundary control, not a de-identification certification.
+- Vendor terms as read on 2026-09-29: Crusoe's self-serve Managed Inference terms do not store inputs or
+  outputs and do not train on them, but prohibit HIPAA-regulated health information and offer no BAA;
+  Band's public terms are silent on HIPAA. Real PHI would need negotiated agreements neither vendor
+  publicly offers today. The demo runs on synthetic patients only.
 - Inference for anything that holds the transcript fails closed. If Crusoe is unavailable the
   case pauses; it never silently routes to another provider.
 
@@ -88,12 +96,12 @@ integration.
 ```bash
 doppler setup                                  # project ai-hackday-2026, config dev
 doppler run -- python3 scripts/check_crusoe_tools.py --max 20
-doppler run -- make demo                       # handoff_2: both vetoes, then approve (Makefile lands with PR #8)
+doppler run -- make demo FIXTURE=handoff_2     # live: veto on the unowned follow-up, human owner, approve, approved room, graph write
 ```
 
-Fixtures: `hallway/fixtures/handoff_{1,2,3}.{txt,wav}`. `handoff_2` is the demo, with a
-planted name and date of birth, a warfarin plus ciprofloxacin interaction, and one follow-up
-nobody owns.
+Fixtures: `hallway/fixtures/handoff_{1,2,3}` and `visit_1` (`.script`, `.txt`, `.wav`; synthetic
+voices). `handoff_2` is the demo: a spoken name and date of birth, a warfarin plus ciprofloxacin
+interaction, and one follow-up nobody owns. Every step ran live today on case `19ecdb31`.
 
 ## How it was built
 
