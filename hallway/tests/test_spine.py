@@ -2,6 +2,7 @@
 import copy
 import json
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch, AsyncMock
 from hallway.common.brief import Brief,digest,extract_identifiers,identifier_violations,validate_brief
@@ -73,6 +74,19 @@ class ValidationTests(unittest.TestCase):
         source={'transcript':'Dolores Whitfield, medical record number four four seven one nine two three. Phone number is five five five, zero one nine, two two four seven.'}
         for value in ('Dolores Whitfield','four four seven one nine two three','five five five zero one nine two two four seven'):
             self.assertTrue(identifier_violations({'quote':value},source),value)
+    def test_real_full_stress_fixture_phone_and_mrn(self):
+        transcript=(Path(__file__).parents[1]/'fixtures'/'handoff_3.txt').read_text()
+        identifiers=extract_identifiers(transcript)
+        phone='five five five, zero one nine, two two four seven'
+        self.assertIn(phone,identifiers)
+        self.assertIn('5550192247',identifiers)
+        self.assertIn('4471923',identifiers)
+        self.assertNotIn('four',identifiers)
+        for value in (phone,'five five five zero one nine two two four seven','5550192247','4471923'):
+            self.assertTrue(identifier_violations({'nested':{'quote':value}},{'transcript':transcript}),value)
+        # A clinical mention of a digit word must not pass only because the MRN
+        # parser mistakenly extracted the single word "four".
+        self.assertEqual([],identifier_violations({'quote':'four'},{'transcript':transcript}))
     def test_compact_phone(self):
         self.assertTrue(identifier_violations({'phone':'4155550123'},RECORDING))
     def test_quote_with_identifier_is_vetoed_even_when_verbatim(self):

@@ -77,7 +77,7 @@ LABELS = re.compile(r"(?:patient(?: name)?|full name|name|dob|date of birth|born
 MONTH_DOB = re.compile(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:\d{1,2}|[a-z-]+)(?:,)?\s+(?:\d{4}|(?:nineteen|twenty|two thousand)\s+[a-z -]+)", re.I)
 DOB = re.compile(r"\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b")
 PHONE = re.compile(r"(?<!\d)(?:\+?1[-. ]?)?(?:\(\d{3}\)|\d{3})[-. ]?\d{3}[-. ]?\d{4}(?!\d)")
-MRN = re.compile(r"\b(?:MRN|medical record(?: number)?)\s*[:#=]?\s*([A-Z0-9-]{4,})\b", re.I)
+MRN = re.compile(r"\b(?:MRN|medical record(?: number)?)\s*(?:is|[:#=])?\s*((?=[A-Z0-9-]*\d)[A-Z0-9-]{4,})\b", re.I)
 ADDRESS = re.compile(r"\b\d{1,6}\s+[A-Za-z0-9 .]+?\s+(?:street|st|avenue|ave|road|rd|lane|ln|drive|dr|boulevard|blvd)\b(?:[^\n;]*)", re.I)
 
 
@@ -98,9 +98,14 @@ def extract_identifiers(transcript: str) -> list[str]:
         values.append(match.group(1).strip())
     for match in re.finditer(r"(?:phone|telephone|address)\s*[:=]\s*([^;\n]+)",transcript,re.I):
         values.append(match.group(1).strip(' .'))
-    spoken_digit=r'(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)'
-    spoken_pattern=rf'(?:MRN|medical record(?: number)?|phone(?: number)?|telephone(?: number)?)\s*(?:is|:|=)?\s*({spoken_digit}(?:[ ,;-]+{spoken_digit}){{3,}})'
-    values += [m.group(1).strip() for m in re.finditer(spoken_pattern,transcript,re.I)]
+    spoken_digit=r'(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\b'
+    spoken_pattern=rf'(?:MRN|medical record(?: number)?|phone(?: number)?|telephone(?: number)?|(?:his|her|their|contact) number|number)\s*(?:is|:|=)?\s*({spoken_digit}(?:[ ,;-]+{spoken_digit}){{3,}})'
+    spoken_values=[m.group(1).strip() for m in re.finditer(spoken_pattern,transcript,re.I)]
+    values += spoken_values
+    digits={'zero':'0','oh':'0','one':'1','two':'2','three':'3','four':'4','five':'5','six':'6','seven':'7','eight':'8','nine':'9'}
+    # Equivalent digit renderings remain identifiers, even when a model reformats
+    # a spoken MRN/phone instead of quoting the original digit words.
+    values += [''.join(digits[word] for word in re.findall(r'[a-z]+',value.casefold())) for value in spoken_values]
     values += DOB.findall(transcript) + PHONE.findall(transcript)
     values += [m.group(1) for m in MRN.finditer(transcript)]
     values += [m.group(0).strip() for m in ADDRESS.finditer(transcript)]
