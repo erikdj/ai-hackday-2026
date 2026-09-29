@@ -78,6 +78,9 @@ class MemoryStore:
             return []
         return list(patient["encounters"])
 
+    def patient_ids(self) -> list[str]:
+        return sorted(self.patients)
+
     def lineage(self):
         return [dict(entry) for entry in self.accessed]
 
@@ -107,6 +110,10 @@ def open_followups_by_owner():
 
 def prior_encounters(pseudo_id):
     return _store().prior_encounters(pseudo_id)
+
+
+def patient_ids():
+    return _store().patient_ids()
 
 
 def lineage():

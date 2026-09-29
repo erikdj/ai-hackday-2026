@@ -1,5 +1,9 @@
 """Query tests. No network and no FastAPI."""
 
+import os
+
+os.environ["MOCK_NEO4J"] = "1"
+
 from hallway.dashboard import queries
 from hallway.graph import store
 
