@@ -4,7 +4,18 @@
 #        CRUSOE_API_KEY=... ./scripts/check-crusoe.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [ -f .env ]; then set -a; . ./.env; set +a; fi
+if [ -f .env ]; then
+  _saved_key="${CRUSOE_API_KEY-}"
+  _saved_url="${CRUSOE_BASE_URL-}"
+  _saved_model="${CRUSOE_MODEL-}"
+  set -a
+  . ./.env
+  set +a
+  if [ -n "$_saved_key" ]; then CRUSOE_API_KEY="$_saved_key"; fi
+  if [ -n "$_saved_url" ]; then CRUSOE_BASE_URL="$_saved_url"; fi
+  if [ -n "$_saved_model" ]; then CRUSOE_MODEL="$_saved_model"; fi
+  unset _saved_key _saved_url _saved_model
+fi
 : "${CRUSOE_API_KEY:?set CRUSOE_API_KEY in .env}"
 BASE="${CRUSOE_BASE_URL:-https://api.inference.crusoecloud.com/v1}"
 

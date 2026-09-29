@@ -87,8 +87,10 @@ Astra is OpenAI's `gpt-6-astra`, the default model in `~/.codex/config.toml` for
   before committing).
 - Design challenge: `/codex:adversarial-review --wait --base main <focus>`.
 - Investigation or a second implementation opinion: `/codex:rescue <task>`.
-- CLI fallback (same thing, no plugin): `codex review --base main -c model="gpt-6-astra"` or
-  `codex exec review`.
+- CLI fallback (same thing, no plugin): `codex review --base main -c model='"gpt-6-astra"'`.
+  Note: `codex review` rejects a custom prompt when `--base` is given; use
+  `/codex:adversarial-review` (or `codex exec` with a prompt) for focused instructions.
+  A full pass on this repo takes roughly five minutes at xhigh reasoning; run it in the background.
 - Review output is returned verbatim. Fix findings via Grok, then re-run. A PR is not ready until
   the last Astra pass has no CRITICAL or HIGH findings, or the human operator explicitly waives them.
 

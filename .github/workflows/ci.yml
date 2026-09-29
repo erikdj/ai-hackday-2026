@@ -9,11 +9,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Whitespace and conflict markers
-        run: git diff --check origin/main...HEAD || git diff --check HEAD~1 || true
-      - name: No .env committed
+        # Informational only: `|| true` so this never fails the job.
         run: |
-          if git ls-files | grep -E '(^|/)\.env(\.[^e]|$)' ; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              echo "Skipping whitespace check: new branch (before SHA is all zeros)"
+              exit 0
+            fi
+          fi
+          git diff --check "$BASE" HEAD || true
+      - name: No .env committed
+        # Informational only: warn, but never fail the job.
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\..+)?$' | grep -vxF '.env.example' ; then
             echo "::warning::a .env file is tracked"; fi
       - name: Obvious secrets scan
         run: |
