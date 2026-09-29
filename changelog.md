@@ -6,6 +6,8 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Added
+- `docs/hackday/hallway-build-brief.md`: the HALLWAY build brief (idea, six-agent Band crew, Crusoe wiring,
+  self-serve tool map with delete tests, build order, demo script, definition of done). JV-95.
 - Project skeleton: `CLAUDE.md` operating rules, README, backlog, changelog, PR template,
   informational CI, `.env.example`, Crusoe smoke-test script.
 - `docs/hackday/event-brief.md` with sponsors, prizes, and judging criteria.
