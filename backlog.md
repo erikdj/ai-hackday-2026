@@ -18,7 +18,7 @@ this file is the offline summary. Update it in every PR that changes the plan.
 
 ## HANDOFF build phases (Jaiven's agent, Astra in Codex)
 
-- [ ] JV-105 Phase 1 spine: Desk + Scribe + Critic on Crusoe in a Band room, both vetoes (cut line 11:50)
+- [ ] JV-105 Phase 1 spine: in progress in draft PR #8; case-room-only HANDOFF schema, identifier/owner checks and Crusoe fail-closed path. Both vetoes and live Band/Crusoe execution remain unverified (cut line 11:50).
 - [ ] JV-106 Phase 2 memory + lineage: Grapher to Neo4j with ACCESSED edges, .wav to inbox, compose (cut line 12:45)
 - [ ] JV-107 Phase 3 boundary room under Erik's second Band account + Researcher on drug names (13:30)
 - [ ] JV-108 Phase 4 dashboard, Vultr deploy, harden, `make demo` (feature freeze 14:00, code freeze 14:40)

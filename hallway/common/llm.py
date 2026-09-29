@@ -1,10 +1,53 @@
-"""One Crusoe model factory; catalog IDs must be configured, never guessed."""
+"""Band-compatible Crusoe primary → Crusoe fallback → pause, for every role."""
 import logging
 import os
 from langchain_openai import ChatOpenAI
+from pydantic import Field
 
 CRUSOE = 'https://api.inference.crusoecloud.com/v1/'
 ROLES = ('desk', 'scribe', 'researcher', 'critic', 'grapher', 'closer')
+
+
+class InferenceUnavailable(RuntimeError):
+    """Safe room-facing error; never includes model input or provider response bodies."""
+
+
+class CrusoeChat(ChatOpenAI):
+    """Retain ChatOpenAI's real bind_tools contract while guarding generation.
+
+    Band's documented LangGraphAdapter requires a BaseChatModel, so a top-level
+    RunnableWithFallbacks is incompatible. This narrow subclass preserves that
+    interface; both clients use only the verified Crusoe endpoint. Streaming is
+    disabled so no partial answer escapes before fallback finishes.
+    """
+    crusoe_fallback: ChatOpenAI = Field(exclude=True, repr=False)
+    hallway_role: str = Field(exclude=True)
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        try:
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except Exception as exc:
+            logging.warning('Crusoe inference failed role=%s model=%s error=%s; trying Crusoe fallback',
+                            self.hallway_role, self.model_name, type(exc).__name__)
+        try:
+            return self.crusoe_fallback._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except Exception as exc:
+            logging.error('Crusoe fallback failed role=%s model=%s error=%s; case paused',
+                          self.hallway_role, self.crusoe_fallback.model_name, type(exc).__name__)
+            raise InferenceUnavailable('inference unavailable, case paused') from None
+
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        try:
+            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except Exception as exc:
+            logging.warning('Crusoe inference failed role=%s model=%s error=%s; trying Crusoe fallback',
+                            self.hallway_role, self.model_name, type(exc).__name__)
+        try:
+            return await self.crusoe_fallback._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except Exception as exc:
+            logging.error('Crusoe fallback failed role=%s model=%s error=%s; case paused',
+                          self.hallway_role, self.crusoe_fallback.model_name, type(exc).__name__)
+            raise InferenceUnavailable('inference unavailable, case paused') from None
 
 
 def llm(role: str) -> ChatOpenAI:
@@ -12,14 +55,21 @@ def llm(role: str) -> ChatOpenAI:
         raise ValueError('Unknown role')
     kind = 'CRITIC' if role == 'critic' else 'FAST' if role in ('desk', 'grapher') else 'STRONG'
     model = os.environ.get(f'CRUSOE_MODEL_{kind}', '').strip()
+    fallback = os.environ.get(f'CRUSOE_MODEL_{kind}_FALLBACK', '').strip() or os.environ.get('CRUSOE_MODEL_FALLBACK', '').strip()
     key = os.environ.get('CRUSOE_API_KEY', '').strip()
-    if not model or not key:
-        raise ValueError(f'CRUSOE_API_KEY and catalog-verified CRUSOE_MODEL_{kind} required')
+    if not model or not key or not fallback or fallback == model:
+        raise ValueError(f'CRUSOE_API_KEY, catalog-verified CRUSOE_MODEL_{kind} and a distinct Crusoe fallback are required')
+    # Never let an environment override silently route transcript-bearing calls elsewhere.
+    endpoint = os.getenv('CRUSOE_BASE_URL', CRUSOE).rstrip('/')
+    if endpoint != CRUSOE.rstrip('/'):
+        raise ValueError('Only the Crusoe managed inference endpoint is permitted')
     if role == 'critic':
         strong = os.environ.get('CRUSOE_FAMILY_STRONG', '').strip().casefold()
         critic = os.environ.get('CRUSOE_FAMILY_CRITIC', '').strip().casefold()
         if not strong or not critic or strong == critic:
             raise ValueError('Set different verified CRUSOE_FAMILY_STRONG and CRUSOE_FAMILY_CRITIC')
-    logging.info('brain role=%s provider=Crusoe model=%s', role, model)
-    # Fail visibly on exhaustion. No implicit provider substitution or fabricated output.
-    return ChatOpenAI(base_url=os.getenv('CRUSOE_BASE_URL', CRUSOE), api_key=key, model=model, timeout=10, max_retries=2)
+    logging.info('brain role=%s provider=Crusoe model=%s fallback=%s', role, model, fallback)
+    options = dict(base_url=endpoint, api_key=key, timeout=10, max_retries=2,
+                   disable_streaming=True, use_responses_api=False)
+    return CrusoeChat(model=model, hallway_role=role,
+                      crusoe_fallback=ChatOpenAI(model=fallback, **options), **options)

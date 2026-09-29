@@ -13,9 +13,6 @@ x-agent: &agent
   init: true
 
 services:
-  desk:
-    <<: *agent
-    command: ["python", "-m", "hallway.agents.desk"]
   scribe:
     <<: *agent
     command: ["python", "-m", "hallway.agents.scribe"]

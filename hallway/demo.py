@@ -9,9 +9,15 @@ from band.runtime.tools.agent import AgentTools
 from band_rest import ChatMessageRequest, ChatMessageRequestMentionsItem
 from hallway.common.band_cfg import configure_timeouts, credentials, identities
 from hallway.common.room import room_records
+from hallway.ingest.fixture import fixture_path
+from hallway.common.llm import llm
 
 
 async def demo(args):
+    fixture_path(args.fixture)
+    for role in ("desk", "scribe", "critic"):
+        llm(role)  # Validate live Crusoe configuration before opening any Band connection.
+    print("SYNTHETIC PATIENT — live Band/Crusoe demo; no clinical data", flush=True)
     configure_timeouts()
     ids = identities()
     room = args.room or os.getenv('BAND_LOBBY_ROOM_ID')
@@ -65,7 +71,7 @@ async def demo(args):
             approvals = [r for r in records if r['kind']=='APPROVAL']
             if approvals:
                 print('Spine APPROVED. Veto count:',sum(r['kind']=='VERDICT' and r['verdict']=='VETO' for r in records))
-                raise RuntimeError('Full demo incomplete: graph query results and CRM record ID are not implemented in this slice')
+                raise RuntimeError('Full demo incomplete: lineage query and approved boundary room evidence are not implemented in this slice')
             await asyncio.sleep(1)
         raise RuntimeError('Case did not approve within 90-second demo budget')
     finally:
@@ -80,7 +86,7 @@ def main():
     except ImportError:
         pass
     parser=argparse.ArgumentParser()
-    parser.add_argument('--fixture', choices=['transcript_1','transcript_2','transcript_alias'], default='transcript_1')
+    parser.add_argument('--fixture', default='handoff_2', help='Safe name of an existing hallway/fixtures/<name>.txt')
     parser.add_argument('--room')
     parser.add_argument('--watch-only',action='store_true')
     args=parser.parse_args()

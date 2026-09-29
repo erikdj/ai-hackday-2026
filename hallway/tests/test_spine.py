@@ -1,38 +1,34 @@
-"""Offline adversarial protocol tests; these are NOT a live sponsor demo."""
+"""Offline synthetic protocol tests, not a live sponsor or clinical validation."""
 import copy
 import json
 import unittest
-from pathlib import Path
-from unittest.mock import patch
 from types import SimpleNamespace
-from hallway.common.brief import Brief, digest, validate_brief
-from hallway.common.room import (PREFIX, approved_payload, case_state, decode_messages,
-                                 review, submit_brief)
-from hallway.common.runtime import make_tools
+from unittest.mock import patch, AsyncMock
+from hallway.common.brief import Brief,digest,extract_identifiers,identifier_violations,validate_brief
+from hallway.common.room import PREFIX,approved_payload,decode_messages,review,submit_brief,request_owner
+from hallway.common.runtime import make_tools, build_agent
+from hallway.common.llm import InferenceUnavailable
+from langchain_openai import ChatOpenAI
 
 IDS={r:r+'-id' for r in ('desk','scribe','critic','researcher','grapher','closer')}
-RECORDING=json.loads((Path(__file__).parents[1]/'fixtures'/'transcript_1.json').read_text())
-RECORDING['human_id']='human-id'
-BASIC={'people':[{'name':'Erik Jones'},{'name':'Maya Chen','company':'Nebius'}],
- 'companies':[{'name':'Nebius','domain':'nebius.com'}],
- 'claims':[{'text':'Maya works at Nebius','quote':'I am Maya Chen, a developer advocate at Nebius.','speaker':'Maya Chen'}],
- 'commitments':[{'text':'Send demo link','quote':'I will send Maya our demo link tomorrow.','owner':'Erik Jones'},
- {'text':'Send the deck','quote':'Someone should send them the deck.','owner':None}]}
+RECORDING={'transcript':'Patient name: Taylor Example\nDOB: 1974-04-03\nMRN: ABC123456\nPhone: 415-555-0123\nAddress: 42 Example Street\nStable overnight. Someone should call the daughter about discharge.','pseudo_id':'pseudonym-123','human_id':'human-id'}
+BASIC={'patient':{'pseudo_id':'pseudonym-123'},'findings':[{'text':'Stable overnight','quote':'Stable overnight.'}],
+       'follow_ups':[{'id':'call-daughter','text':'Call daughter about discharge','quote':'Someone should call the daughter about discharge.','status':'pending'}]}
 
 
-def record(kind, payload, author):
-    return {'id':str(id(payload)), 'sender_id':IDS.get(author,author), 'sender_type':'Agent',
+def record(kind,payload,author):
+    return {'id':str(id(payload)),'sender_id':IDS.get(author,author),'sender_type':'Agent',
             'content':PREFIX+json.dumps({'kind':kind,**payload}),
-            'mentions':[{'id':IDS[r]} for r in {'TRANSCRIPT':['scribe','critic'], 'BRIEF':['critic','researcher'], 'ENRICHMENT':['critic','scribe'], 'APPROVAL':['grapher','closer','scribe']}.get(kind,[])]}
+            'mentions':[{'id':IDS[r]} for r in {'TRANSCRIPT':['scribe','critic'],'BRIEF':['critic'], 'OWNER_REQUEST':['critic'],'APPROVAL':['scribe']}.get(kind,[])]}
 
 
 class FakeBand:
-    """In-memory transport double only for tests; never imported by runtime."""
     def __init__(self):
-        self.room_id='case-1'; self.role='scribe'; self.added=[]; self.filter_mentions=False; self.rest=self; self.rooms={self.room_id:self}
+        self.room_id='case-1';self.role='scribe';self.added=[];self.filter_mentions=False
+        self.rest=self;self.rooms={self.room_id:self}
         self.messages=[record('TRANSCRIPT',{'recording':RECORDING},'desk')]
         self.participants=[{'id':v,'handle':'@team/'+k,'type':'Agent'} for k,v in IDS.items()]
-        self.participants.append({'id':'human-id','handle':'@human','type':'User'})
+        self.participants.append({'id':'human-id','handle':'@human','type':'User','name':'Charge Nurse'})
     async def fetch_room_context(self,**kwargs):
         assert kwargs['room_id']==self.room_id
         messages=self.messages
@@ -41,126 +37,187 @@ class FakeBand:
             messages=[m for m in messages if m.get('sender_id')==identity or identity in [x['id'] for x in m.get('mentions',[])]]
         return {'data':messages,'meta':{'total_pages':1}}
     async def get_participants(self): return self.participants
-    async def lookup_peers(self): return {}
-    async def add_participant(self,identifier):
-        self.added.append(identifier); return {'status':'added'}
+    async def lookup_peers(self): raise AssertionError('No phase1 research recruitment')
+    async def add_participant(self,identifier): self.added.append(identifier);return {'status':'added'}
     async def create_chatroom(self):
-        room_id='case-'+str(len(self.rooms)+1); room=FakeBand();room.messages=[];room.room_id=room_id;room.role=self.role;room.rest=self;room.rooms=self.rooms;self.rooms[room_id]=room
+        room_id='case-'+str(len(self.rooms)+1);room=FakeBand();room.messages=[];room.room_id=room_id
+        room.role=self.role;room.rest=self;room.rooms=self.rooms;self.rooms[room_id]=room
         return room_id
     async def send_event(self,content,message_type):
-        if message_type=='task':
-            self.messages.append({'id':str(len(self.messages)), 'sender_id':IDS[self.role], 'content':content})
+        if message_type=='task': self.messages.append({'id':str(len(self.messages)),'sender_id':IDS[self.role],'content':content})
         return {}
     async def send_message(self,content,mentions):
-        self.messages.append({'id':str(len(self.messages)), 'sender_id':IDS[self.role],
-                              'content':content, 'mentions':mentions})
+        self.messages.append({'id':str(len(self.messages)),'sender_id':IDS[self.role],'sender_type':'Agent','content':content,'mentions':mentions})
         return {}
+    def human(self,content,name='Charge Nurse',sender='human-id',sender_type='User'):
+        message={'id':'reply-'+str(len(self.messages)),'sender_id':sender,'sender_type':sender_type,
+                 'sender_name':name,'content':content,'mentions':[{'id':IDS['scribe']},{'id':IDS['critic']}]}
+        self.messages.append(message);return message
 
 
 class ValidationTests(unittest.TestCase):
-    def test_unowned_is_vetoed(self):
-        self.assertTrue(any('named owner' in e for e in validate_brief(Brief.model_validate(BASIC),RECORDING,[])))
-    def test_quote_and_url_fail_closed(self):
-        b=copy.deepcopy(BASIC);b['claims'][0]['quote']='Invented quotation'
+    def test_identifier_gate_scans_all_fields(self):
+        for value in ('Taylor Example','Taylor','1974-04-03','ABC123456','415-555-0123','42 Example Street'):
+            self.assertTrue(identifier_violations({'nested':{'quote':value}},RECORDING))
+        self.assertEqual([],identifier_violations({'quote':'Stable overnight.'},RECORDING))
+    def test_spoken_fixture_name_and_dob(self):
+        source={'transcript':'This is Robert Callahan, date of birth March fourth, nineteen fifty-two. Stable overnight.'}
+        for value in ('Robert Callahan','Robert','Callahan','March fourth, nineteen fifty-two'):
+            self.assertTrue(identifier_violations({'quote':value},source),value)
+    def test_actual_fixture_identity_forms_are_stable(self):
+        first='Okay, handing off ED bay four. Robert Callahan, date of birth March fourth, nineteen fifty-two.'
+        second='Okay, bed twelve. This is Robert Callahan, date of birth March fourth, nineteen fifty-two. Seventy-four year old male.'
+        self.assertEqual(extract_identifiers(first),extract_identifiers(second))
+        self.assertIn('Robert Callahan',extract_identifiers(first))
+    def test_spoken_stress_identifiers(self):
+        source={'transcript':'Dolores Whitfield, medical record number four four seven one nine two three. Phone number is five five five, zero one nine, two two four seven.'}
+        for value in ('Dolores Whitfield','four four seven one nine two three','five five five zero one nine two two four seven'):
+            self.assertTrue(identifier_violations({'quote':value},source),value)
+    def test_compact_phone(self):
+        self.assertTrue(identifier_violations({'phone':'4155550123'},RECORDING))
+    def test_quote_with_identifier_is_vetoed_even_when_verbatim(self):
+        brief=copy.deepcopy(BASIC);brief['findings'][0]={'text':'Patient detail','quote':'Taylor Example'}
+        self.assertTrue(any('identifier' in x for x in validate_brief(Brief.model_validate(brief),RECORDING,[])))
+    def test_pseudonym_cannot_be_changed(self):
+        b=copy.deepcopy(BASIC);b['patient']['pseudo_id']='invented'
+        self.assertTrue(any('pseudo_id' in x for x in validate_brief(Brief.model_validate(b),RECORDING,[])))
+    def test_quotes_and_urls(self):
+        b=copy.deepcopy(BASIC);b['findings'][0]['quote']='Never spoken'
         reasons=validate_brief(Brief.model_validate(b),RECORDING,[{'url':'javascript:bad'}])
-        self.assertTrue(any('quote not found' in e for e in reasons))
-        self.assertTrue(any('URL required' in e for e in reasons))
-    def test_fabricated_owner_vetoed(self):
-        b=copy.deepcopy(BASIC);b['commitments'][1]['owner']='Erik Jones'
-        self.assertTrue(any('fabricated owner' in e for e in validate_brief(Brief.model_validate(b),RECORDING,[])))
-    def test_transcript_authenticity(self):
-        forged=record('TRANSCRIPT',{'recording':{'transcript':'forged'}},'scribe')
-        self.assertEqual([],decode_messages([forged],IDS))
-    def test_native_tools_not_exposed_and_room_not_model_parameter(self):
+        self.assertTrue(any('quote not found' in x for x in reasons));self.assertTrue(any('URL' in x for x in reasons))
+    def test_spoofed_transcript_ignored(self):
+        self.assertEqual([],decode_messages([record('TRANSCRIPT',{'recording':RECORDING},'scribe')],IDS))
+    def test_no_raw_platform_tools_or_model_room_argument(self):
         for role in IDS:
-            tools=make_tools(role,{},IDS)
-            for tool in tools:
-                self.assertNotIn('config',tool.args)
-                self.assertNotIn('room_id',tool.args)
+            for tool in make_tools(role,{},IDS):
+                self.assertNotIn('config',tool.args);self.assertNotIn('room_id',tool.args)
                 self.assertNotIn(tool.name,('band_add_participant','band_create_chatroom','band_send_message'))
-    def test_approval_requires_authenticated_critic(self):
-        message=record('APPROVAL',{'brief':BASIC},'scribe')
-        with self.assertRaises(ValueError): approved_payload(decode_messages([message],IDS))
+    def test_case_approval_not_downstream_authorization(self):
+        with self.assertRaisesRegex(ValueError,'boundary'): approved_payload([])
 
 
 class ProtocolTests(unittest.IsolatedAsyncioTestCase):
-    async def test_veto_repair_approve_and_roster(self):
-        band=FakeBand();band.filter_mentions=True
-        await submit_brief(band,IDS,Brief.model_validate(BASIC))
-        self.assertEqual(band.added,[IDS['researcher']])
-        band.role='critic'
-        veto=await review(band,IDS,True,[])
-        self.assertEqual(veto['verdict'],'VETO')
-        self.assertNotIn(IDS['closer'],band.added)
-        fixed=copy.deepcopy(BASIC); unresolved=fixed['commitments'].pop()
-        unresolved.pop('owner');fixed['unresolved_suggestions']=[unresolved]
-        band.role='scribe'; await submit_brief(band,IDS,Brief.model_validate(fixed))
-        band.role='critic'
-        self.assertEqual((await review(band,IDS,True,[]))['status'],'WAITING_FOR_ENRICHMENT')
-        band.messages.append(record('ENRICHMENT',{'facts':[], 'companies_digest':digest({'companies':fixed['companies']})},'researcher'))
+    async def initial_veto(self,band,brief=None):
+        band.role='scribe';await submit_brief(band,IDS,Brief.model_validate(brief or BASIC));band.role='critic'
         verdict=await review(band,IDS,True,[])
-        self.assertEqual(verdict['status'],'APPROVED')
-        self.assertIn(IDS['closer'],band.added)
-        band.role='closer'
-        visible=(await band.fetch_room_context(room_id=band.room_id))['data']
-        visible_records=decode_messages(visible,IDS)
-        self.assertFalse(any(r['kind']=='TRANSCRIPT' for r in visible_records))
-        self.assertFalse(any(r['kind']=='BRIEF' for r in visible_records))
-        payload=approved_payload(visible_records)
-        self.assertEqual(payload['revision'],2)
-        self.assertEqual(payload['brief']['unresolved_suggestions'][0]['quote'],'Someone should send them the deck.')
-    async def test_fixture_intake_authenticated_and_idempotent_per_human_message(self):
+        self.assertEqual(verdict['verdict'],'VETO')
+        band.role='scribe';return verdict
+    async def repaired(self,band,owner=None,reply=None):
+        request=await request_owner(band,IDS,'call-daughter')
+        brief=copy.deepcopy(BASIC);item=brief['follow_ups'][0]
+        item['request_message_id']=request['message_id']
+        item['status']='pending' if owner else 'unresolved';item['owner']=owner
+        item['owner_message_id']=reply['id'] if reply else None
+        return brief,request
+    async def test_unresolved_after_explicit_request_approved_without_recruitment(self):
+        band=FakeBand();band.filter_mentions=True;await self.initial_veto(band)
+        brief,_=await self.repaired(band);await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        result=await review(band,IDS,True,[])
+        self.assertEqual(result['status'],'APPROVED');self.assertEqual(result['unresolved_follow_ups'],['call-daughter'])
+        self.assertEqual([],band.added)
+        approval=[r for r in decode_messages(band.messages,IDS) if r['kind']=='APPROVAL'][-1]
+        self.assertNotIn('recording',approval);self.assertEqual(approval['scope'],'case_only_phase1')
+        self.assertEqual([],identifier_violations(approval,RECORDING))
+    async def test_unresolved_cannot_skip_human_request(self):
+        band=FakeBand();b=copy.deepcopy(BASIC);b['follow_ups'][0]['status']='unresolved'
+        verdict=await self.initial_veto(band,b)
+        self.assertTrue(any('request required' in r for r in verdict['reasons']))
+    async def test_real_human_ill_own_it_uses_sender_name(self):
+        band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,request=await self.repaired(band)
+        reply=band.human("I'll own it",name='Erik Jones')
+        brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_reply_not_visible_to_critic_is_not_provenance(self):
+        band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human("I'll own it",name='Erik Jones')
+        reply['mentions']=[{'id':IDS['scribe']}]
+        brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+    async def test_forged_agent_ownership_rejected(self):
+        band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human("I'll own it",name='Erik Jones',sender=IDS['scribe'],sender_type='Agent')
+        brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+    async def test_named_human_assignment(self):
+        band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human('/own call-daughter Maria Lopez')
+        brief['follow_ups'][0].update(status='pending',owner='Maria Lopez',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_owner_must_match_actual_human(self):
+        band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human("I'll own it",name='Erik Jones')
+        brief['follow_ups'][0].update(status='pending',owner='Invented Nurse',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+    async def test_hallucinated_followup_removable_but_backed_preserved(self):
+        band=FakeBand();bad=copy.deepcopy(BASIC)
+        bad['follow_ups'].append({'id':'invented','text':'Invented procedure','quote':'Never spoken'})
+        await self.initial_veto(band,bad)
+        revised=await submit_brief(band,IDS,Brief.model_validate(BASIC))
+        self.assertEqual(revised['removed_unsupported_follow_ups'],['invented'])
+        band=FakeBand();await self.initial_veto(band)
+        dropped=copy.deepcopy(BASIC);dropped['follow_ups']=[]
+        with self.assertRaisesRegex(ValueError,'preserve'):await submit_brief(band,IDS,Brief.model_validate(dropped))
+    async def test_followup_id_cannot_hide_replaced_quote(self):
+        band=FakeBand();await self.initial_veto(band)
+        changed=copy.deepcopy(BASIC);changed['follow_ups'][0]['quote']='Stable overnight.'
+        with self.assertRaisesRegex(ValueError,'original source-backed'):
+            await submit_brief(band,IDS,Brief.model_validate(changed))
+    async def test_two_repairs_escalate(self):
+        band=FakeBand()
+        for _ in range(3): verdict=await self.initial_veto(band)
+        self.assertTrue(verdict['escalate'])
+        self.assertIn('human-id',[m['id'] for m in band.messages[-1]['mentions']])
+        with self.assertRaisesRegex(ValueError,'exhausted'):await submit_brief(band,IDS,Brief.model_validate(BASIC))
+    async def test_semantic_veto_not_overridden(self):
+        band=FakeBand();b=copy.deepcopy(BASIC);b['follow_ups']=[]
+        await submit_brief(band,IDS,Brief.model_validate(b));band.role='critic'
+        self.assertEqual((await review(band,IDS,False,['Unsupported meaning']))['verdict'],'VETO')
+    async def test_identifier_veto_then_repair(self):
+        band=FakeBand();bad=copy.deepcopy(BASIC);bad['follow_ups']=[]
+        bad['findings'].append({'text':'Identifying name','quote':'Taylor Example'})
+        verdict=await self.initial_veto(band,bad)
+        self.assertTrue(any('identifier' in x for x in verdict['reasons']))
+        fixed=copy.deepcopy(BASIC);fixed['follow_ups']=[]
+        await submit_brief(band,IDS,Brief.model_validate(fixed));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_transcript_named_and_role_owners_accepted(self):
+        for owner,quote in [('Maria','Maria should check the result.'),('night nurse','The night nurse will check the result.'),('receiving nurse',"Check the result, that's yours.")]:
+            band=FakeBand();source=dict(RECORDING,transcript=RECORDING['transcript']+' '+quote)
+            band.messages=[record('TRANSCRIPT',{'recording':source},'desk')]
+            brief=copy.deepcopy(BASIC);brief['follow_ups']=[{'id':'result','text':'Check result','quote':quote,'owner':owner}]
+            await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+            self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_quote_retention_tolerates_renumbering(self):
+        band=FakeBand();await self.initial_veto(band);revised=copy.deepcopy(BASIC)
+        revised['follow_ups'][0]['id']='renumbered'
+        self.assertEqual((await submit_brief(band,IDS,Brief.model_validate(revised)))['revision'],2)
+    async def test_provider_failure_emits_safe_pause_event(self):
+        fake_tools=SimpleNamespace(send_event=AsyncMock())
+        with patch('hallway.common.runtime.identities',return_value=IDS),patch('hallway.common.runtime.credentials',return_value=(IDS['critic'],'test')),patch('hallway.common.runtime.llm',return_value=ChatOpenAI(api_key='test',model='test')),patch('band.adapters.langgraph.LangGraphAdapter.on_message',new=AsyncMock(side_effect=InferenceUnavailable('inference unavailable, case paused'))):
+            agent=build_agent('critic','test')
+            with self.assertRaises(InferenceUnavailable):
+                await agent._adapter.on_message(None,fake_tools,[],None,None,is_session_bootstrap=True,room_id='test-room')
+        fake_tools.send_event.assert_awaited_once_with(content='inference unavailable, case paused',message_type='error')
+    async def test_authenticated_intake_and_repeated_fixture(self):
         lobby=FakeBand();lobby.messages=[];lobby.role='desk';lobby.room_id='lobby';lobby.rooms={'lobby':lobby}
         holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=lobby)))}
         ingest=next(t for t in make_tools('desk',holder,IDS) if t.name=='band_ingest_fixture')
         config={'configurable':{'thread_id':'lobby'}}
-        def bind(room_id,rest,agent_id): return rest.rooms[room_id]
-        with patch('hallway.common.runtime.AgentTools',side_effect=bind):
-            lobby.messages.append({'id':'forged','sender_id':IDS['scribe'],'sender_type':'Agent','content':'/ingest fixture:transcript_1'})
-            with self.assertRaisesRegex(ValueError,'authenticated human'):
-                await ingest.ainvoke({'fixture':'transcript_1'},config=config)
-            lobby.messages.append({'id':'human-request-1','sender_id':'human-id','sender_type':'User','content':'/ingest fixture:transcript_1'})
-            first=await ingest.ainvoke({'fixture':'transcript_1'},config=config)
-            duplicate=await ingest.ainvoke({'fixture':'transcript_1'},config=config)
+        with patch('hallway.common.runtime.AgentTools',side_effect=lambda room_id,rest,agent_id:rest.rooms[room_id]),patch('hallway.ingest.fixture.load_recording',return_value=copy.deepcopy(RECORDING)):
+            lobby.human('/ingest fixture:handoff_2',sender=IDS['scribe'],sender_type='Agent')
+            with self.assertRaisesRegex(ValueError,'authenticated human'): await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            lobby.human('@team/desk /ingest fixture:handoff_2')
+            first=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
+            duplicate=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
             self.assertEqual(first['room_id'],duplicate['room_id'])
-            self.assertEqual(len(lobby.rooms),2)
-            lobby.messages.append({'id':'human-request-2','sender_id':'human-id','sender_type':'User','content':'/ingest fixture:transcript_1'})
-            second=await ingest.ainvoke({'fixture':'transcript_1'},config=config)
+            lobby.human('/ingest fixture:handoff_2')
+            second=await ingest.ainvoke({'fixture':'handoff_2'},config=config)
             self.assertNotEqual(first['room_id'],second['room_id'])
-            with self.assertRaisesRegex(ValueError,'differs'):
-                await ingest.ainvoke({'fixture':'transcript_2'},config=config)
-    async def test_no_company_does_not_recruit_researcher(self):
-        band=FakeBand()
-        recording=json.loads((Path(__file__).parents[1]/'fixtures'/'transcript_2.json').read_text())
-        band.messages=[record('TRANSCRIPT',{'recording':recording},'desk')]
-        brief={'people':[{'name':'Erik Jones'},{'name':'Jordan Lee'}], 'companies':[],
-               'commitments':[{'text':'Send talk notes','quote':'I will send Jordan the public talk notes tomorrow.','owner':'Erik Jones'}]}
-        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
-        await review(band,IDS,True,[])
-        self.assertNotIn(IDS['researcher'],band.added)
-        self.assertIn(IDS['closer'],band.added)
-    async def test_repair_cannot_silently_drop_commitment(self):
-        band=FakeBand(); await submit_brief(band,IDS,Brief.model_validate(BASIC));band.role='critic'
-        await review(band,IDS,True,[]);band.role='scribe'
-        bad=copy.deepcopy(BASIC);bad['commitments'].pop()
-        with self.assertRaisesRegex(ValueError,'preserve'):
-            await submit_brief(band,IDS,Brief.model_validate(bad))
-    async def test_semantic_veto_cannot_be_overridden_by_valid_quotes(self):
-        band=FakeBand();b=copy.deepcopy(BASIC);b['commitments'].pop()
-        await submit_brief(band,IDS,Brief.model_validate(b));band.role='critic'
-        verdict=await review(band,IDS,False,['Claim misinterprets source'])
-        self.assertEqual(verdict['verdict'],'VETO');self.assertNotIn(IDS['closer'],band.added)
-    async def test_two_repairs_escalate_to_human(self):
-        band=FakeBand()
-        for revision in range(1,4):
-            band.role='scribe';await submit_brief(band,IDS,Brief.model_validate(BASIC))
-            band.role='critic';verdict=await review(band,IDS,True,[])
-        self.assertTrue(verdict['escalate'])
-        self.assertIn('human-id',[m['id'] for m in band.messages[-1]['mentions']])
-        band.role='scribe'
-        with self.assertRaisesRegex(ValueError,'exhausted'):
-            await submit_brief(band,IDS,Brief.model_validate(BASIC))
-        self.assertNotIn(IDS['closer'],band.added)
+            with self.assertRaisesRegex(ValueError,'differs'): await ingest.ainvoke({'fixture':'handoff_1'},config=config)
 
-
-if __name__=='__main__': unittest.main()
+if __name__=='__main__':unittest.main()

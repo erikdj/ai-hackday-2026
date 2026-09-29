@@ -1,7 +1,7 @@
 PYTHON ?= python3
 VENV ?= .venv
 RUN_PYTHON = $(VENV)/bin/python
-FIXTURE ?= transcript_1
+FIXTURE ?= handoff_2
 
 .PHONY: install check smoke-models demo
 install:
@@ -18,7 +18,12 @@ check:
 smoke-models:
 	$(RUN_PYTHON) scripts/smoke_models.py $(MODELS)
 
-# Requires live Band/Crusoe configuration. The module sends through Band only.
-# Room is read from BAND_LOBBY_ROOM_ID (.env supported by the product).
+# Live is the default. BOTH mock flags explicitly select unit-test harness only.
+# Mixed flags fail; a live error never falls back to local execution.
 demo:
-	$(RUN_PYTHON) -m hallway.demo --fixture $(FIXTURE)
+	@mode=$$($(RUN_PYTHON) -m hallway.offline_demo --mode) || exit $$?; \
+	case "$$mode" in \
+	  offline) $(RUN_PYTHON) -m hallway.offline_demo ;; \
+	  live) $(RUN_PYTHON) -m hallway.demo --fixture $(FIXTURE) ;; \
+	  *) exit 2 ;; \
+	esac

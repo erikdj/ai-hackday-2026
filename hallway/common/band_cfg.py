@@ -15,9 +15,14 @@ def credentials(role: str) -> tuple[str, str]:
 
 
 def identities() -> dict[str, str]:
-    result = {role: credentials(role)[0] for role in ROLES}
-    if len(set(result.values())) != 6:
-        raise ValueError('Six different Band agent IDs are required')
+    result = {role: credentials(role)[0] for role in ('desk','scribe','critic')}
+    for role in ('researcher','grapher','closer'):
+        try:
+            result[role]=credentials(role)[0]
+        except (ValueError,FileNotFoundError):
+            continue
+    if len(set(result.values())) != len(result):
+        raise ValueError('Configured Band agent IDs must be different')
     return result
 
 
