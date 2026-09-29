@@ -48,6 +48,10 @@ def create_app():
     def index():
         return _PAGE
 
+    from hallway.dashboard import mcp
+
+    mcp.mount(app)
+
     return app
 
 

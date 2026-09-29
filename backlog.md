@@ -4,6 +4,7 @@ Mirror of the Linear project **AI Hackday 2026** (`P-JV-47`). Linear is the sour
 this file is the offline summary. Update it in every PR that changes the plan.
 
 ## Now
+- [ ] JV-98 DuploCloud: Erik runs `../devkit/run.sh` (work email, verification link), register the dashboard MCP endpoint as a server + provider + scope, file one ticket, screenshot the answer for the ledger (cut 13:45)
 
 - [x] JV-95 Idea: Safe Scribe (brief in docs/hackday/safe-scribe-build-brief.md)
 - [x] JV-96 Tech stack decision, ADR-0002 accepted (PR #3)
@@ -26,7 +27,6 @@ this file is the offline summary. Update it in every PR that changes the plan.
 
 ## Candidates (only if the idea needs them)
 
-- [ ] JV-98 DuploCloud devkit (Tier 2, only after `make demo` is green)
 - [ ] JV-101 Additional sponsor integrations that do real work (Neo4j, Vultr, Brave, Similarweb, Merge.dev, Plaud, UserTesting, Nebius)
 - [ ] JV-103 Submit sponsor developer feedback (leaderboard points)
 

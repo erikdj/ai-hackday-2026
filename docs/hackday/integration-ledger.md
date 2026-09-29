@@ -17,7 +17,7 @@ Last updated: 2026-09-29 11:50 PDT.
 | Brave | 2 | deferred | | Jaiven (JV-107) | Researcher: one drug interaction/guideline fact with URL; query is the drug name only. |
 | Merge.dev | cut | attempted | | | Cut at the 11:10 pivot: no healthcare fit. |
 | Vultr | 2 | deferred | | Jaiven (JV-108) | Hosts Scribe, Critic, Grapher, Closer, dashboard. Desk + transcription + upload page stay on the laptop so no audio leaves it. |
-| DuploCloud | 2 (after `make demo` green) | deferred | devkit docs vendored | Erik (JV-98) | Self-serve local Docker; register Safe Scribe as a skill/MCP server. |
+| DuploCloud | 2 | attempted | devkit cloned to `../devkit`, Docker up; `hallway/dashboard/mcp.py` MCP endpoint + 8 tests (PR JV-98); devkit stack not yet started (needs Erik's work email + verification link) | Erik (JV-98) | Register `http://host.docker.internal:8090/mcp` (transport http) under AI Admin → MCP Servers, Provider + Scope, then a ticket asks "which agents saw identifiers?" and gets Desk, Scribe, Critic from Neo4j. Cut 13:45. |
 | Similarweb | only if a key is pinned in Discord | deferred | | | Enterprise key; 20-minute cap if one appears. |
 | Plaud | cut | attempted | no device | | Pitch says "any transcript". |
 | UserTesting | cut | deferred | | | Needs provisioning. |
