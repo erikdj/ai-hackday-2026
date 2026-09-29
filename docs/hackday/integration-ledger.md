@@ -10,7 +10,7 @@ Last updated: 2026-09-29 11:15 PDT (post-pivot to HANDOFF).
 | Tool | Tier | State | Evidence | Owner | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Crusoe | 1 | deferred | no key yet; `scripts/check_crusoe_tools.py` ready (mock: 3 PASS) | Erik (JV-97) | $10k gate. Discord pins, then Crusoe console Intelligence Foundry, then the Crusoe table. `scripts/check-crusoe.sh` and `scripts/check_crusoe_tools.py` verify. |
-| Band | 1 | deferred | SDK installed on Jaiven's laptop; no agents registered | Jaiven (JV-105), Erik (JV-107) | Six remote agents at app.band.ai/agents plus Erik's second account for the Closer boundary room (core since the pivot). |
+| Band | 1 | deferred | SDK installed on Jaiven's laptop; no agents registered | Jaiven (JV-105), Erik (JV-107) | Six remote agents at app.band.ai/agents (or REST registration from one key if Band allows; Jaiven's agent confirming). Erik's second account for the Closer is stretch after 14:00. |
 | Neo4j | 1 | deferred | recipe in docs (JV-104) | Jaiven (JV-106) | Aura Free instance not created yet. Cut line 2. Clinical nodes plus ACCESSED lineage edges; canned query "which agents saw identifiers?" (expected: Desk, Scribe, Critic). |
 | OpenRouter | 2 | deferred | | Jaiven (JV-108) | Dashboard ask-the-graph over the pseudonymized graph only. Never a fallback for transcript-bearing agents (they fail closed). |
 | Nebius | 2 | deferred | | Jaiven (JV-107) | Embeddings suggest possible prior encounters on pseudonymous fields; never merge. Identity is Desk's local pseudo_id. |
