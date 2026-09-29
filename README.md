@@ -24,14 +24,15 @@ the room, and Neo4j records which agent saw which field.
 | [docs/hackday/sponsor-integrations.md](docs/hackday/sponsor-integrations.md) | How to wire Crusoe, Band, DuploCloud, Neo4j, and the rest. |
 | [docs/decisions/](docs/decisions/) | Architecture decision records. |
 | [docs/reference/duplocloud-devkit/](docs/reference/duplocloud-devkit/) | Vendored DuploCloud devkit hackday docs. |
+| [docs/hackday/secrets.md](docs/hackday/secrets.md) | Doppler is the source of truth for every key. `doppler run -- <cmd>`. |
 | [backlog.md](backlog.md) | What is next. |
 | [changelog.md](changelog.md) | What shipped. |
 
 ## Quick start
 
 ```bash
-cp .env.example .env          # fill in keys, never commit .env
-./scripts/check-crusoe.sh     # proves the Crusoe inference path works
+doppler setup                                   # project ai-hackday-2026, config dev
+doppler run -- ./scripts/check-crusoe.sh        # proves the Crusoe inference path works
 ```
 
 Product setup instructions are added here once the stack is chosen.
