@@ -86,7 +86,7 @@ doppler run --no-fallback -- make demo         # real Crusoe + Band credentials 
 Desk runs on the presenting laptop in every topology, never on the Vultr VM, so audio stays local. Text is explicitly sent to Band and Crusoe. Start Desk with
 `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.desk`; start Scribe and Critic in separate terminals with
 `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.scribe` and `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.critic`. The
-compose file deliberately omits Desk; it carries Scribe, Critic and, in later phases, Grapher and Closer.
+Compose file deliberately omits Desk. Its default services are Scribe and Critic; the `phase2` profile adds Researcher and Grapher. Closer remains in the separate `deferred` profile.
 
 For a deliberately offline unit-test harness, run:
 
@@ -107,6 +107,18 @@ passes each service only its own Band key; no secret-file mount is required. To 
 Compose reading a legacy `.env` during interpolation, start cloud services with
 `doppler run --no-fallback -- docker compose --env-file /dev/null up -d`. Docker deployment
 has not been verified in this checkout. `--no-fallback` disables Doppler secret-cache files.
+
+For five-agent operation, keep Desk on the laptop and run the four cloud roles with
+`doppler run --no-fallback -- docker compose --env-file /dev/null --profile phase2 up -d --build`.
+Configure `ENABLE_APPROVED_ROOM=1` and `ENABLE_DRUG_RESEARCH=1` in Doppler, all five
+Band agent IDs and each running role's own key, plus `BRAVE_API_KEY` and
+`NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` (`NEO4J_DATABASE` is optional).
+Use `MOCK_BRAVE=0` and `MOCK_NEO4J=0` for live evidence. Compose passes Brave credentials
+only to Researcher and Neo4j credentials only to Grapher; it passes no human API key,
+Desk watcher configuration or local pseudonym salt. Starting the profile does not turn
+on the feature flags automatically. Do not start a second copy of an already connected
+agent ID; coordinate the handover with the operator between cases. These are deployment
+instructions, not evidence of a Docker build or a live deployment.
 
 Create a Band lobby containing Desk and the human operator; copy its ID to `BAND_LOBBY_ROOM_ID`.
 `make demo` requires `BAND_HUMAN_API_KEY` to send the authenticated intake request. Alternatively,
