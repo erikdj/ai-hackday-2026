@@ -4,24 +4,30 @@ The model receives agent names, identifier *field names* per agent, and pseudony
 It never receives a transcript, a brief, an identifier value or a pseudonymous id. The exact
 payload sent is returned next to the narrative so a judge can verify that claim. If Crusoe is
 unavailable the call fails closed; there is no other provider.
+
+Standard library only (urllib), so the dashboard can serve this on an interpreter that has
+FastAPI and the Neo4j driver but not the agents' LangChain stack.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
+import urllib.error
+import urllib.request
 
 from hallway.dashboard import queries
 from hallway.graph.neo4j_store import get_store
 
+CRUSOE_ENDPOINT = "https://api.inference.crusoecloud.com/v1"
 IDENTIFIER_FIELDS = ("patient_name", "dob", "mrn", "phone", "address")
 # Purposes that mean the agent handled case evidence (transcript or brief) on the PHI side. An
 # agent with such rows but no identifier-field rows has unverified evidence, not proven non-access.
 _PHI_SIDE_PURPOSES = ("intake", "extraction", "review")
 _SAFE_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9 _-]{0,40}$")
-# Narrative uses the FAST tier client (Qwen, thinking off). The llm() factory keys options by
-# runtime role; 'grapher' is the non-transcript role on that tier, so its client is reused here.
-_CLIENT_ROLE = "grapher"
+_TIMEOUT_SECONDS = 30
+_MAX_TOKENS = 400
 
 SYSTEM_PROMPT = (
     "You write a short compliance statement for a hospital privacy officer about an AI scribe "
@@ -31,6 +37,10 @@ SYSTEM_PROMPT = (
     "which (if any) have unverified evidence and must not be described as non-accessing, and that "
     "the record is pseudonymous. No preamble."
 )
+
+
+class NarrativeUnavailable(RuntimeError):
+    """Crusoe did not return a narrative. Nothing else is tried."""
 
 
 def _safe(name) -> str | None:
@@ -73,33 +83,57 @@ def narrative_inputs() -> dict:
     }
 
 
-def _client():
-    from hallway.common.llm import llm
-
-    return llm(_CLIENT_ROLE)
-
-
-def compliance_narrative(client=None) -> dict:
-    """Ask Crusoe for the narrative. Raises InferenceUnavailable (never falls back elsewhere)."""
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    inputs = narrative_inputs()
-    client = client or _client()
-    response = client.invoke(
-        [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=json.dumps(inputs, sort_keys=True))]
+def _models() -> list[str]:
+    primary = os.environ.get("CRUSOE_MODEL_FAST", "").strip()
+    fallback = (
+        os.environ.get("CRUSOE_MODEL_FAST_FALLBACK", "").strip()
+        or os.environ.get("CRUSOE_MODEL_FALLBACK", "").strip()
     )
-    text = response.content if isinstance(response.content, str) else ""
-    if not text.strip():
-        from hallway.common.llm import InferenceUnavailable
+    return [m for m in (primary, fallback) if m]
 
-        raise InferenceUnavailable("Crusoe returned no narrative text")
-    metadata = getattr(response, "response_metadata", None) or {}
-    model = metadata.get("model_name") or metadata.get("model")
-    return {
-        "provider": "crusoe",
-        # The completion names the model that actually answered (primary or Crusoe fallback).
-        "model": model or getattr(client, "model_name", None) or getattr(client, "model", None),
-        "model_source": "completion" if model else "client",
-        "inputs": inputs,
-        "narrative": text.strip(),
-    }
+
+def crusoe_chat(messages: list[dict]) -> tuple[str, str]:
+    """POST to Crusoe chat completions: primary FAST model, then the Crusoe fallback. Returns (text, model)."""
+    endpoint = os.environ.get("CRUSOE_BASE_URL", CRUSOE_ENDPOINT).rstrip("/")
+    if endpoint != CRUSOE_ENDPOINT:
+        raise ValueError("Only the Crusoe managed inference endpoint is permitted")
+    key = os.environ.get("CRUSOE_API_KEY", "").strip()
+    models = _models()
+    if not key or not models:
+        raise ValueError("CRUSOE_API_KEY and CRUSOE_MODEL_FAST are required")
+    thinking_off = {v.strip() for v in os.environ.get("CRUSOE_DISABLE_THINKING_MODELS", "").split(",") if v.strip()}
+    last_error: Exception | None = None
+    for model in models:
+        body: dict = {"model": model, "messages": messages, "max_tokens": _MAX_TOKENS}
+        if model in thinking_off:
+            body["chat_template_kwargs"] = {"enable_thinking": False}
+        if model == "zai-org/GLM-5.3":
+            body["reasoning_effort"] = "low"
+        request = urllib.request.Request(
+            endpoint + "/chat/completions",
+            data=json.dumps(body).encode(),
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS) as response:
+                data = json.loads(response.read())
+            text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+            if text.strip():
+                return text.strip(), str(data.get("model") or model)
+            last_error = NarrativeUnavailable(f"{model} returned no text")
+        except (urllib.error.URLError, TimeoutError, ValueError, KeyError, OSError) as exc:
+            last_error = exc
+    raise NarrativeUnavailable(f"Crusoe narrative failed: {type(last_error).__name__}: {last_error}")
+
+
+def compliance_narrative(chat=None) -> dict:
+    """Ask Crusoe for the narrative. Raises NarrativeUnavailable; never falls back to another provider."""
+    inputs = narrative_inputs()
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": json.dumps(inputs, sort_keys=True)},
+    ]
+    text, model = (chat or crusoe_chat)(messages)
+    if not isinstance(text, str) or not text.strip():
+        raise NarrativeUnavailable("Crusoe returned no narrative text")
+    return {"provider": "crusoe", "model": model, "inputs": inputs, "narrative": text.strip()}

@@ -10,25 +10,18 @@ from hallway.graph import store
 
 PATIENT_NAME = "Robert Callahan"
 DOB = "March fourth, nineteen fifty-two"
+REPLY = "Desk, Scribe and Critic processed identifiers. Others did not. Records are pseudonymous."
 
 
-class _Reply:
-    def __init__(self, content, model=None):
-        self.content = content
-        self.response_metadata = {"model_name": model} if model else {}
-
-
-class _FakeClient:
-    model_name = "Qwen/Qwen3.8-27B"
-
-    def __init__(self, reply="Desk, Scribe and Critic processed identifiers. Others did not. Records are pseudonymous.", model=None):
+class _FakeChat:
+    def __init__(self, reply=REPLY, model="Qwen/Qwen3.8-27B"):
         self.reply = reply
         self.model = model
         self.messages = None
 
-    def invoke(self, messages):
+    def __call__(self, messages):
         self.messages = messages
-        return _Reply(self.reply, self.model)
+        return self.reply, self.model
 
 
 def _seed():
@@ -73,31 +66,33 @@ class NarrativeTests(unittest.TestCase):
             self.assertNotIn(forbidden, blob)
 
     def test_model_sees_exactly_the_inputs_and_result_echoes_them(self):
-        client = _FakeClient()
-        result = narrative.compliance_narrative(client=client)
-        sent = client.messages[1].content
+        chat = _FakeChat()
+        result = narrative.compliance_narrative(chat=chat)
+        self.assertEqual(chat.messages[0]["role"], "system")
+        sent = chat.messages[1]["content"]
         self.assertEqual(json.loads(sent), result["inputs"])
         self.assertNotIn("Callahan", sent)
         self.assertEqual(result["provider"], "crusoe")
         self.assertEqual(result["model"], "Qwen/Qwen3.8-27B")
-        self.assertEqual(result["model_source"], "client")
-
-    def test_model_is_taken_from_the_completion_when_present(self):
-        result = narrative.compliance_narrative(client=_FakeClient(model="deepseek-ai/Deepseek-V4-Flash"))
-        self.assertEqual(result["model"], "deepseek-ai/Deepseek-V4-Flash")
-        self.assertEqual(result["model_source"], "completion")
         self.assertTrue(result["narrative"].startswith("Desk, Scribe and Critic"))
 
-    def test_empty_model_reply_fails_closed(self):
-        from hallway.common.llm import InferenceUnavailable
+    def test_model_name_comes_from_the_completion(self):
+        result = narrative.compliance_narrative(chat=_FakeChat(model="deepseek-ai/Deepseek-V4-Flash"))
+        self.assertEqual(result["model"], "deepseek-ai/Deepseek-V4-Flash")
 
-        with self.assertRaises(InferenceUnavailable):
-            narrative.compliance_narrative(client=_FakeClient(reply=""))
+    def test_empty_model_reply_fails_closed(self):
+        with self.assertRaises(narrative.NarrativeUnavailable):
+            narrative.compliance_narrative(chat=_FakeChat(reply=""))
 
     def test_unsafe_agent_names_are_dropped(self):
         store.write_approved({}, [{"agent": f"{PATIENT_NAME} <script>", "field": "dob"}], "p_x", "enc-2")
         inputs = narrative.narrative_inputs()
         self.assertNotIn("Callahan", json.dumps(inputs))
+
+    def test_non_crusoe_endpoint_is_refused(self):
+        with patch.dict(os.environ, {"CRUSOE_BASE_URL": "https://example.invalid/v1", "CRUSOE_API_KEY": "k", "CRUSOE_MODEL_FAST": "m"}):
+            with self.assertRaises(ValueError):
+                narrative.crusoe_chat([{"role": "user", "content": "x"}])
 
 
 if __name__ == "__main__":

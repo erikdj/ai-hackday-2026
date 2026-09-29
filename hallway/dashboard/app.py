@@ -54,12 +54,11 @@ def create_app():
     def lineage_narrative():
         from fastapi.responses import JSONResponse
 
-        from hallway.common.llm import InferenceUnavailable
         from hallway.dashboard import narrative
 
         try:
             return narrative.compliance_narrative()
-        except (InferenceUnavailable, ValueError) as exc:
+        except (narrative.NarrativeUnavailable, ValueError) as exc:
             return JSONResponse(
                 status_code=503,
                 content={"error": f"Crusoe inference unavailable; no other provider is used ({type(exc).__name__})"},
