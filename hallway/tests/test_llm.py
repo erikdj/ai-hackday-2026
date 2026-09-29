@@ -72,6 +72,16 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                 with self.subTest(role=role), self.assertRaisesRegex(ValueError, 'Only the Crusoe'):
                     llm(role)
 
+    def test_role_output_budgets_apply_to_both_crusoe_clients(self):
+        with patch.dict(os.environ, ENV, clear=True):
+            for role,expected in {'scribe':2048,'researcher':2048,'closer':2048,'desk':1024,'critic':1024,'grapher':1024}.items():
+                model=llm(role)
+                for client in (model,model.crusoe_fallback):
+                    self.assertEqual(client.max_tokens,expected)
+                    self.assertEqual(client.request_timeout,10)
+                    self.assertEqual(client.max_retries,2)
+                    self.assertEqual(str(client.openai_api_base),'https://api.inference.crusoecloud.com/v1')
+
     def test_distinct_secondary_is_required(self):
         with patch.dict(os.environ, {**ENV, 'CRUSOE_MODEL_FALLBACK': 'primary'}, clear=True):
             with self.assertRaisesRegex(ValueError, 'distinct Crusoe fallback'):

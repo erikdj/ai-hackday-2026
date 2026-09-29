@@ -70,6 +70,7 @@ def llm(role: str) -> ChatOpenAI:
             raise ValueError('Set different verified CRUSOE_FAMILY_STRONG and CRUSOE_FAMILY_CRITIC')
     logging.info('brain role=%s provider=Crusoe model=%s fallback=%s', role, model, fallback)
     options = dict(base_url=endpoint, api_key=key, timeout=10, max_retries=2,
-                   disable_streaming=True, use_responses_api=False)
+                   disable_streaming=True, use_responses_api=False,
+                   max_tokens=2048 if role in ('scribe', 'researcher', 'closer') else 1024)
     return CrusoeChat(model=model, hallway_role=role,
                       crusoe_fallback=ChatOpenAI(model=fallback, **options), **options)
