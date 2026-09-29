@@ -88,9 +88,9 @@ def llm(role: str) -> ChatOpenAI:
         if not strong or not critic or strong == critic:
             raise ValueError('Set different verified CRUSOE_FAMILY_STRONG and CRUSOE_FAMILY_CRITIC')
     logging.info('brain role=%s provider=Crusoe model=%s fallback=%s', role, model, fallback)
-    options = dict(base_url=endpoint, api_key=key, timeout=10, max_retries=2,
+    options = dict(base_url=endpoint, api_key=key, timeout=30, max_retries=1,
                    disable_streaming=True, use_responses_api=False,
-                   max_tokens=2048 if role in ('scribe', 'researcher', 'closer') else 1024)
+                   max_tokens=4096 if role == 'scribe' else 2048 if role in ('researcher', 'closer') else 1024)
     # GLM-5.3 is always reasoning-enabled; upstream recommends low for latency:
     # https://docs.z.ai/guides/llm/glm-5.3 (also probed on Crusoe managed inference).
     primary_options=dict(options)

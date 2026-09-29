@@ -109,12 +109,12 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
 
     def test_role_output_budgets_apply_to_both_crusoe_clients(self):
         with patch.dict(os.environ, ENV, clear=True):
-            for role,expected in {'scribe':2048,'researcher':2048,'closer':2048,'desk':1024,'critic':1024,'grapher':1024}.items():
+            for role,expected in {'scribe':4096,'researcher':2048,'closer':2048,'desk':1024,'critic':1024,'grapher':1024}.items():
                 model=llm(role)
                 for client in (model,model.crusoe_fallback):
                     self.assertEqual(client.max_tokens,expected)
-                    self.assertEqual(client.request_timeout,10)
-                    self.assertEqual(client.max_retries,2)
+                    self.assertEqual(client.request_timeout,30)
+                    self.assertEqual(client.max_retries,1)
                     self.assertEqual(str(client.openai_api_base),'https://api.inference.crusoecloud.com/v1')
 
     def test_low_reasoning_only_for_exact_verified_glm_in_either_position(self):
@@ -138,9 +138,9 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                 self.assertEqual(model.extra_body, expected if primary_enabled else None)
                 self.assertEqual(model.crusoe_fallback.extra_body, expected if fallback_enabled else None)
                 for client in (model, model.crusoe_fallback):
-                    self.assertEqual(client.request_timeout, 10)
-                    self.assertEqual(client.max_retries, 2)
-                    self.assertEqual(client.max_tokens, 2048)
+                    self.assertEqual(client.request_timeout, 30)
+                    self.assertEqual(client.max_retries, 1)
+                    self.assertEqual(client.max_tokens, 4096)
 
     def test_disable_thinking_requires_exact_case_sensitive_model_match(self):
         for listed in (None, '', ' , ', 'Primary,secondary-extra,other/primary'):
