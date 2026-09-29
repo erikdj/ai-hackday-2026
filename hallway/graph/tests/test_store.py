@@ -84,3 +84,36 @@ def test_caller_follow_up_is_not_aliased():
     store.write_approved({"follow_ups": [item]}, [], "p", "e")
     item["text"] = "mutated"
     assert store._store().encounters["e"]["follow_ups"][0]["text"] == "call"
+
+
+def test_write_and_read_share_backend_when_neo4j_configured(monkeypatch):
+    import hallway.dashboard.queries as queries
+    import hallway.graph.neo4j_store as neo4j_store
+    import hallway.graph.store as graph_store
+
+    monkeypatch.setenv("NEO4J_URI", "neo4j+s://stub")
+    monkeypatch.setenv("NEO4J_USERNAME", "u")
+    monkeypatch.setenv("NEO4J_PASSWORD", "p")
+    monkeypatch.delenv("MOCK_NEO4J", raising=False)
+    monkeypatch.setattr(graph_store, "_neo4j_instance", None)
+
+    calls = []
+
+    class StubNeo4jStore:
+        def __init__(self):
+            pass
+
+        def write_approved(self, brief, manifest, pseudo_id, encounter_id):
+            calls.append((brief, manifest, pseudo_id, encounter_id))
+            return {"merged": False}
+
+        def who_saw_identifiers(self):
+            return ["Stub"]
+
+    monkeypatch.setattr(neo4j_store, "Neo4jStore", StubNeo4jStore)
+
+    result = graph_store.write_approved({"patient": {"pseudo_id": "p"}}, [], "p", "e")
+    assert result["merged"] is False
+    assert neo4j_store.get_store() is graph_store._store()
+    assert queries.who_saw_identifiers()["agents"] == ["Stub"]
+    assert calls  # recorded on the shared stub, not a second backend
