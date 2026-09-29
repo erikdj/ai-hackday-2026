@@ -157,3 +157,15 @@ its checkpoint exists. A graph call timeout emits no success receipt; its worker
 thread may still complete, so a later retry can safely rewrite the same encounter.
 
 The live demo observer now waits for an authenticated boundary checkpoint, matching Critic approval, and a real `GRAPH_WRITTEN` receipt with the actual lineage query result. Mock graph receipts never pass. Success is labeled **phase 2 verified**, not completion of Researcher, Closer, or event submission requirements.
+## Drug-only research helper (JV-107)
+
+`hallway/common/research_room.py` recruits Researcher into a separate Band room only for
+supported, transcript-backed medication names. The request carries those names and an opaque
+routing UUID, never the transcript or patient identity. Scribe validates and relays source URLs
+back into the case; Critic waits for that relay or an explicit failure. The small medication
+vocabulary skips unsupported names explicitly. Recruitment resumes from a Band checkpoint.
+
+Brave results count as live evidence only when their own metadata says `mock: false` and
+`source: brave`; missing keys and mock results produce no evidence. Eleven focused offline tests
+cover the boundary and retries. Runtime tool wiring and a live end-to-end research run remain
+pending; this helper alone is not sponsor-demo proof.
