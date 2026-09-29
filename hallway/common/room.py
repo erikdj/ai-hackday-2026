@@ -162,13 +162,14 @@ def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], hum
             reasons.append(f'follow-up {item.id}: owner provenance is not an authenticated human reply')
             continue
         content=message.get('content','').strip()
-        # Strip only exact server-verified leading handle tokens, never arbitrary
-        # @text or handles embedded in the assignment itself.
+        # Strip verified recipient tokens only at the outer edges. Interior
+        # owner text and unknown handles/UUIDs must remain part of the reply.
+        content=strip_leading_mentions(content,set(reply_handles))
         while content:
-            tokens=content.split(None,1)
-            if len(tokens)!=2 or tokens[0] not in reply_handles:
+            tokens=content.rsplit(None,1)
+            if len(tokens)!=2 or tokens[-1] not in reply_handles:
                 break
-            content=tokens[1]
+            content=tokens[0]
         content=normalize(content).replace('’', "'").rstrip('.!')
         owner=None
         if content in ("i'll own it",'i will own it'):
@@ -265,8 +266,15 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
     await tools.get_participants()
     human_ids={p['id'] for p in tools.participants if str(p.get('type','')).casefold()=='user'}
     reasons=validate_brief(brief,state['recording'],[])
-    reply_handles=tuple(p['handle'] for p in tools.participants if p['id'] in {ids['scribe'],ids['critic']} and p.get('handle'))
-    reasons += ownership_errors(brief,messages,ids,human_ids,reply_handles)
+    reply_handles=[]
+    for participant in tools.participants:
+        if participant['id'] not in {ids['scribe'],ids['critic']}:
+            continue
+        reply_handles.append(f"@[[{participant['id']}]]")
+        handle=participant.get('handle')
+        if handle:
+            reply_handles.extend((handle,handle if handle.startswith('@') else '@'+handle))
+    reasons += ownership_errors(brief,messages,ids,human_ids,tuple(reply_handles))
     if not approve:
         reasons.extend(judgment_reasons or ['Critic judgment rejected unsupported interpretation'])
     if reasons:

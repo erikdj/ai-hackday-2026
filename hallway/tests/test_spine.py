@@ -202,6 +202,36 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
             await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
             result=await review(band,IDS,True,[])
             self.assertEqual(result.get('status',result.get('verdict')),expected,prefix)
+    async def test_verified_uuid_mentions_at_both_outer_edges(self):
+        scribe='@[['+IDS['scribe']+']]';critic='@[['+IDS['critic']+']]'
+        for content in ("I'll own it "+scribe+' '+critic,
+                        scribe+" I'll own it "+critic,
+                        critic+"\nI'll own it\t"+scribe):
+            with self.subTest(content=content):
+                band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+                reply=band.human(content,name='Erik Jones')
+                brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+                await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+                self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_unknown_uuid_reply_suffix_is_not_stripped(self):
+        band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human("I'll own it @[[unknown-uuid]] @[["+IDS['critic']+']] ',name='Erik Jones')
+        brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+    async def test_named_owner_with_verified_outer_mentions(self):
+        band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human('@[['+IDS['scribe']+']] /own call-daughter Maria Lopez @[['+IDS['critic']+']]')
+        brief['follow_ups'][0].update(status='pending',owner='Maria Lopez',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_named_owner_interior_mention_is_preserved(self):
+        band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+        reply=band.human('/own call-daughter Maria @[['+IDS['scribe']+']] Lopez @[['+IDS['critic']+']]')
+        brief['follow_ups'][0].update(status='pending',owner='Maria Lopez',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        # Silently deleting the interior token would falsely authorize this owner.
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
     async def test_forged_agent_ownership_rejected(self):
         band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
         reply=band.human("I'll own it",name='Erik Jones',sender=IDS['scribe'],sender_type='Agent')

@@ -57,6 +57,41 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                 await llm('critic').ainvoke('synthetic')
         self.assertEqual(request.call_count, 2)
 
+    async def test_truncated_primary_falls_back_to_valid_completion(self):
+        calls=[]
+        async def generate(client,messages,**kwargs):
+            calls.append(client.model_name)
+            if client.model_name=='primary':
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content=''),generation_info={'finish_reason':'length'})])
+            return answer()
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_agenerate',autospec=True,side_effect=generate):
+            self.assertEqual((await llm('scribe').ainvoke('synthetic')).content,'test response')
+        self.assertEqual(calls,['primary','secondary'])
+
+    async def test_both_truncated_fail_closed(self):
+        async def generate(client,messages,**kwargs):
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=''),generation_info={'finish_reason':'length'})])
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_agenerate',autospec=True,side_effect=generate) as request:
+            with self.assertRaises(InferenceUnavailable):await llm('scribe').ainvoke('synthetic')
+        self.assertEqual(request.call_count,2)
+
+    def test_invalid_tool_call_sync_falls_back(self):
+        calls=[]
+        def generate(client,messages,**kwargs):
+            calls.append(client.model_name)
+            if client.model_name=='primary':
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content='',invalid_tool_calls=[{'name':'publish','args':'{','id':'bad','error':'invalid JSON','type':'invalid_tool_call'}]),generation_info={'finish_reason':'tool_calls'})])
+            return answer()
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_generate',autospec=True,side_effect=generate):
+            self.assertEqual(llm('scribe').invoke('synthetic').content,'test response')
+        self.assertEqual(calls,['primary','secondary'])
+
+    def test_valid_empty_stop_is_not_rejected(self):
+        result=ChatResult(generations=[ChatGeneration(message=AIMessage(content=''),generation_info={'finish_reason':'stop'})])
+        with patch.dict(os.environ,ENV,clear=True),patch.object(ChatOpenAI,'_generate',return_value=result) as request:
+            self.assertEqual(llm('critic').invoke('synthetic').content,'')
+        self.assertEqual(request.call_count,1)
+
     def test_sync_fallback(self):
         def generate(client, messages, **kwargs):
             if client.model_name == 'primary':
