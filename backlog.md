@@ -13,12 +13,19 @@ this file is the offline summary. Update it in every PR that changes the plan.
 ## Next
 
 - [ ] JV-99 Wire the agent's LLM to Crusoe end to end
-- [ ] JV-102 Demo script and live-run rehearsal
+- [ ] JV-102 Demo script written; rehearsal pending a green `make demo`
+
+## HALLWAY build phases (Jaiven's agent, Astra in Codex)
+
+- [ ] JV-105 Phase 1 spine: Desk + Scribe + Critic on Crusoe in a Band room (cut line 1)
+- [ ] JV-106 Phase 2 memory: Grapher to Neo4j, mic to inbox, compose (cut line 2)
+- [ ] JV-107 Phase 3 recruitment and enrichment: Researcher via Brave, Nebius dedupe, Closer draft
+- [ ] JV-108 Phase 4 CRM, dashboard, Vultr deploy, harden, `make demo`
 
 ## Candidates (only if the idea needs them)
 
 - [ ] JV-100 Band integration that passes the delete test (Best Use of BAND, $1,000)
-- [ ] JV-101 Additional sponsor integrations that do real work (Neo4j, Vultr, Brave, Similarweb, Merge.dev, Plaud, UserTesting, Nebius)
+- [ ] JV-101 Additional sponsor integrations that do real work; JV-104 Neo4j via the sponsor starter recipe
 - [ ] JV-103 Submit sponsor developer feedback (leaderboard points)
 
 ## Done
