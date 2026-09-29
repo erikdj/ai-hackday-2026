@@ -23,6 +23,23 @@ class SpokenDomainTest(unittest.TestCase):
     def test_no_domain(self):
         self.assertIsNone(spoken_domain("she found a place called Sunrise Home Health."))
 
+    def test_stops_at_boundary_words(self):
+        self.assertEqual(spoken_domain("Their website is example dot org"), "example.org")
+
+    def test_phrase_with_and_without_name(self):
+        self.assertEqual(spoken_domain(PHRASE), "sunrisehomehealth.com")
+        self.assertEqual(spoken_domain(PHRASE, "Sunrise Home Health"), "sunrisehomehealth.com")
+
+    def test_name_path_ignores_leading_words(self):
+        text = "you can look at sunrise home health dot com later"
+        self.assertEqual(spoken_domain(text, "Sunrise Home Health"), "sunrisehomehealth.com")
+
+    def test_care_dot_health(self):
+        self.assertEqual(spoken_domain("go to acme care dot health"), "acmecare.health")
+
+    def test_text_without_domain_is_none(self):
+        self.assertIsNone(spoken_domain("nothing spoken here about a site"))
+
 
 class OrganizationFactTest(unittest.TestCase):
     def test_mock_flag(self):
@@ -77,6 +94,26 @@ class OrganizationFactTest(unittest.TestCase):
         self.assertIsNotNone(fact)
         self.assertEqual(fact["rank"], 10)
         self.assertGreaterEqual(calls["n"], 3)
+
+    def test_empty_payloads_fail_closed(self):
+        with _live_env():
+            self.assertIsNone(
+                organization_fact("Sunrise Home Health", "example.com", fetch=lambda url: {})
+            )
+
+    def test_rank_only_keeps_fact(self):
+        def fetch(url):
+            if "similar-rank" in url:
+                return {"similar_rank": {"rank": 42}}
+            return {"visits": []}
+
+        with _live_env():
+            fact = organization_fact("Example", "example.org", fetch=fetch)
+        self.assertIsNotNone(fact)
+        self.assertEqual(fact["rank"], 42)
+        self.assertIsNone(fact["monthly_visits"])
+        self.assertTrue(fact["active"])
+        self.assertIn("visit count unavailable", fact["claim"])
 
 
 if __name__ == "__main__":

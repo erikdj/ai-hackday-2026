@@ -13,19 +13,38 @@ SIMILARWEB_PAGE = "https://www.similarweb.com/website/{domain}/"
 API_BASE = "https://api.similarweb.com/v1"
 _TLDS = "com|org|net|health|care|io"
 _DOT = re.compile(rf"\bdot\s+({_TLDS})\b", re.IGNORECASE)
+_BOUNDARY = frozenset(
+    "is at called visit website site to on the a an their our its of and it it's go try see".split()
+)
+_STOP_CHARS = set(",.;:!?\"'`“”‘’")
 _ATTEMPTS = 3
 _TIMEOUT_S = 10
 
 
-def spoken_domain(text: str) -> str | None:
-    """Pull a spoken domain ('example dot org') out of free text."""
-    if not text:
+def _normalize(text: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() else " " for ch in text.lower())
+    return " ".join(cleaned.split())
+
+
+def _name_domain(normalized: str, name: str) -> str | None:
+    words = _normalize(name).split()
+    if not words:
         return None
+    forms = (re.escape(" ".join(words)), re.escape("".join(words)))
+    match = re.search(rf"\b(?:{forms[0]}|{forms[1]}) dot ({_TLDS})\b", normalized)
+    if match is None:
+        return None
+    return "".join(words) + "." + match.group(1)
+
+
+def _fallback_domain(text: str) -> str | None:
     match = _DOT.search(text)
     if match is None:
         return None
     words: list[str] = []
     for token in reversed(text[: match.start()].split()):
+        if any(ch in token for ch in _STOP_CHARS) or token.lower() in _BOUNDARY:
+            break
         if not re.fullmatch(r"[A-Za-z0-9]+", token):
             break
         words.append(token.lower())
@@ -35,6 +54,17 @@ def spoken_domain(text: str) -> str | None:
         return None
     words.reverse()
     return "".join(words) + "." + match.group(1).lower()
+
+
+def spoken_domain(text: str, name: str | None = None) -> str | None:
+    """Pull a spoken domain ('example dot org') out of free text."""
+    if not text:
+        return None
+    if name:
+        named = _name_domain(_normalize(text), name)
+        if named:
+            return named
+    return _fallback_domain(text)
 
 
 def _shift_month(today: date, delta: int) -> str:
@@ -153,13 +183,17 @@ def organization_fact(name: str, domain: str, *, fetch=None) -> dict | None:
     visits_payload = _get(fetch, visits_url)
     if visits_payload is None:
         return None
+    rank = _rank(rank_payload)
     visits, month = _visits(visits_payload)
-    return _fact(name, domain, _rank(rank_payload), visits, month)
+    if rank is None and visits is None:
+        log.warning("similarweb request failed status=no-metrics")
+        return None
+    return _fact(name, domain, rank, visits, month)
 
 
 def fact_from_transcript(transcript: str, name: str, *, fetch=None) -> dict | None:
     """Resolve a spoken domain in a transcript, then look it up."""
-    domain = spoken_domain(transcript)
+    domain = spoken_domain(transcript, name)
     if domain is None:
         return None
     return organization_fact(name, domain, fetch=fetch)
