@@ -155,3 +155,5 @@ Band checkpoints resume room delivery on retry and graph writes use stable MERGE
 keys. A crash immediately after room creation can leave an empty orphan room before
 its checkpoint exists. A graph call timeout emits no success receipt; its worker
 thread may still complete, so a later retry can safely rewrite the same encounter.
+
+The live demo observer now waits for an authenticated boundary checkpoint, matching Critic approval, and a real `GRAPH_WRITTEN` receipt with the actual lineage query result. Mock graph receipts never pass. Success is labeled **phase 2 verified**, not completion of Researcher, Closer, or event submission requirements.

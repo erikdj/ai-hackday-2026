@@ -8,9 +8,30 @@ from band.client.rest import AsyncRestClient, DEFAULT_REQUEST_OPTIONS, aclose_re
 from band.runtime.tools.agent import AgentTools
 from band_rest import ChatMessageRequest, ChatMessageRequestMentionsItem
 from hallway.common.band_cfg import configure_timeouts, credentials, identities
-from hallway.common.room import room_records
+from hallway.common.room import room_records,approved_payload
 from hallway.ingest.fixture import fixture_path
 from hallway.common.llm import llm
+
+
+def verified_graph_receipt(case_records, boundary_records, case_id, boundary_id):
+    """Observer only: authenticated decoded Band evidence, never trigger workers."""
+    checkpoints=[r for r in case_records if r['kind']=='BOUNDARY_SENT' and r.get('case_id')==case_id and r.get('approved_room_id')==boundary_id]
+    if not checkpoints:
+        return None
+    payload=approved_payload(boundary_records,boundary_id)
+    checkpoint=checkpoints[-1]
+    if payload['case_id']!=case_id or any(checkpoint.get(k)!=payload.get(k) for k in ('revision','digest')):
+        raise ValueError('Case checkpoint and boundary approval disagree')
+    receipts=[r for r in boundary_records if r['kind']=='GRAPH_WRITTEN'
+              and r.get('status')=='GRAPH_WRITTEN' and r.get('case_id')==case_id
+              and r.get('approved_room_id')==boundary_id
+              and r.get('digest')==payload['digest'] and r.get('revision')==payload['revision']]
+    if not receipts:
+        return None
+    receipt=receipts[-1]
+    if not isinstance(receipt.get('who_saw_identifiers'),list) or not all(isinstance(v,str) for v in receipt['who_saw_identifiers']):
+        raise ValueError('Graph receipt lacks an actual lineage query result')
+    return receipt
 
 
 async def demo(args):
@@ -70,10 +91,23 @@ async def demo(args):
             records = await room_records(case, ids)
             approvals = [r for r in records if r['kind']=='APPROVAL']
             if approvals:
-                print('Spine APPROVED. Veto count:',sum(r['kind']=='VERDICT' and r['verdict']=='VETO' for r in records))
-                raise RuntimeError('Full demo incomplete: lineage query and approved boundary room evidence are not implemented in this slice')
+                boundaries=[r for r in records if r['kind']=='BOUNDARY_SENT' and r.get('case_id')==case_id]
+                if boundaries:
+                    boundary_id=boundaries[-1]['approved_room_id']
+                    boundary=AgentTools(boundary_id,critic_client,agent_id=ids['critic'])
+                    boundary_records=await room_records(boundary,ids)
+                    receipt=verified_graph_receipt(records,boundary_records,case_id,boundary_id)
+                    if receipt:
+                        print('Spine APPROVED. Veto count:',sum(r['kind']=='VERDICT' and r['verdict']=='VETO' for r in records))
+                        print('Approved Band room ID:',boundary_id)
+                        if template: print('Approved room URL:',template.format(room_id=boundary_id))
+                        print('Neo4j encounter:',receipt.get('encounter'),'merged:',receipt.get('merged'))
+                        print('Global who_saw_identifiers result:',receipt['who_saw_identifiers'])
+                        print('PHASE 2 VERIFIED: real graph receipt; processing provenance is not read/delivery proof.')
+                        print('Research, Closer and final event-submission requirements remain separate.')
+                        return receipt
             await asyncio.sleep(1)
-        raise RuntimeError('Case did not approve within 90-second demo budget')
+        raise RuntimeError('No verified live approved-room graph receipt within 90 seconds; mock receipts and case-only approval do not pass')
     finally:
         for client in clients:
             await aclose_rest_client(client)
