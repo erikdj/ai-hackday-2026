@@ -1,10 +1,12 @@
-"""In-memory graph store for HANDOFF. Same interface as a later Neo4j backend."""
+"""Graph store selector. Memory by default; Neo4j when NEO4J_URI is set."""
+import os
 
 IDENTIFIER_FIELDS = {"patient_name", "dob", "mrn", "phone", "address"}
 
 _BRIEF_LISTS = ("meds", "allergies", "pending_results", "findings", "follow_ups")
 
 _instance = None
+_neo4j_instance = None
 
 
 def _copy_items(items):
@@ -86,14 +88,26 @@ class MemoryStore:
 
 
 def _store():
-    global _instance
-    if _instance is None:
-        _instance = MemoryStore()
-    return _instance
+    global _instance, _neo4j_instance
+    if os.environ.get("MOCK_NEO4J") == "1" or not os.environ.get("NEO4J_URI"):
+        if _instance is None:
+            _instance = MemoryStore()
+        return _instance
+    if _neo4j_instance is None:
+        from hallway.graph.neo4j_store import Neo4jStore
+
+        _neo4j_instance = Neo4jStore()
+    return _neo4j_instance
 
 
 def reset():
-    _store().reset()
+    global _instance, _neo4j_instance
+    if _instance is None:
+        _instance = MemoryStore()
+    else:
+        _instance.reset()
+    if _neo4j_instance is not None:
+        _neo4j_instance.reset()
 
 
 def write_approved(brief, manifest, pseudo_id, encounter_id):

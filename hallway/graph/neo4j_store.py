@@ -4,9 +4,8 @@ import time
 import warnings
 from pathlib import Path
 
-from hallway.graph.store import IDENTIFIER_FIELDS, _store
+from hallway.graph.store import IDENTIFIER_FIELDS
 
-_cached = None
 _SCHEMA = Path(__file__).with_name("schema.cypher")
 
 
@@ -199,9 +198,6 @@ class Neo4jStore:
 
 
 def get_store():
-    global _cached
-    if os.environ.get("MOCK_NEO4J") == "1" or not os.environ.get("NEO4J_URI"):
-        return _store()
-    if _cached is None:
-        _cached = Neo4jStore()
-    return _cached
+    from hallway.graph.store import _store
+
+    return _store()
