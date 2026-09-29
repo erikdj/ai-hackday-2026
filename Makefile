@@ -12,6 +12,7 @@ check:
 	$(RUN_PYTHON) -m compileall -q hallway scripts
 	$(RUN_PYTHON) -m unittest discover -s scripts -p 'test_*.py' -v
 	$(RUN_PYTHON) -m unittest discover -s hallway/tests -v
+	MOCK_NEO4J=1 $(RUN_PYTHON) -m pytest hallway/graph hallway/dashboard hallway/research -q
 
 # First discover IDs: make smoke-models MODELS=--list
 # Then supply exactly two: make smoke-models MODELS='catalog/id-a catalog/id-b'

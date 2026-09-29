@@ -14,54 +14,41 @@ API_BASE = "https://api.similarweb.com/v1"
 _TLDS = "com|org|net|health|care|io"
 _DOT = re.compile(rf"\bdot\s+({_TLDS})\b", re.IGNORECASE)
 _BOUNDARY = frozenset(
-    "is at called visit website site to on the a an their our its of and it it's go try see".split()
+    "is at called visit website site to on the a an their our its of and it go try see".split()
 )
-_STOP_CHARS = set(",.;:!?\"'`“”‘’")
+_LABEL = re.compile(r"[A-Za-z0-9-]+")
 _ATTEMPTS = 3
 _TIMEOUT_S = 10
 _NOT_FOUND = object()
 
 
-def _normalize(text: str) -> str:
-    cleaned = "".join(ch if ch.isalnum() else " " for ch in text.lower())
-    return " ".join(cleaned.split())
-
-
-def _name_domain(normalized: str, name: str) -> str | None:
-    words = _normalize(name).split()
-    if not words:
-        return None
-    forms = (re.escape(" ".join(words)), re.escape("".join(words)))
-    match = re.search(rf"\b(?:{forms[0]}|{forms[1]}) dot ({_TLDS})\b", normalized)
-    if match is None:
-        return None
-    return "".join(words) + "." + match.group(1)
-
-
-def _fallback_domain(text: str) -> str | None:
-    match = _DOT.search(text)
-    if match is None:
-        return None
-    words: list[str] = []
-    for token in reversed(text[: match.start()].split()):
-        stopped = any(ch in token for ch in _STOP_CHARS) or token.lower() in _BOUNDARY
-        if stopped or not re.fullmatch(r"[A-Za-z0-9]+", token):
-            break
-        words.append(token.lower())
-        if len(words) == 4:
-            break
-    if not words:
-        return None
-    return "".join(reversed(words)) + "." + match.group(1).lower()
+def _spoken_candidates(text: str) -> list[str]:
+    found: list[str] = []
+    for match in _DOT.finditer(text):
+        tokens: list[str] = []
+        for token in reversed(text[: match.start()].split()):
+            if token.lower() in _BOUNDARY or _LABEL.fullmatch(token) is None:
+                break
+            tokens.append(token.lower())
+            if len(tokens) == 4:
+                break
+        if tokens:
+            found.append("".join(reversed(tokens)) + "." + match.group(1).lower())
+    return found
 
 
 def spoken_domain(text: str, name: str | None = None) -> str | None:
     """Pull a spoken domain ('example dot org') out of free text."""
     if not text:
         return None
-    if name and _normalize(name):
-        return _name_domain(_normalize(text), name)
-    return _fallback_domain(text)
+    candidates = _spoken_candidates(text)
+    key = re.sub(r"[^a-z0-9]", "", (name or "").strip().lower())
+    if not key:
+        return candidates[0] if candidates else None
+    for candidate in candidates:
+        if candidate.rsplit(".", 1)[0].replace("-", "") == key:
+            return candidate
+    return None
 
 
 def _shift_month(today: date, delta: int) -> str:

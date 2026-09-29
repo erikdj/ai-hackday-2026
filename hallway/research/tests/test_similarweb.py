@@ -34,6 +34,15 @@ class SpokenDomainTest(unittest.TestCase):
         text = "you can look at sunrise home health dot com later"
         self.assertEqual(spoken_domain(text, "Sunrise Home Health"), "sunrisehomehealth.com")
 
+    def test_hyphenated_label_matches_spaced_name(self):
+        self.assertEqual(
+            spoken_domain("Their website is acme-care dot org", "Acme Care"),
+            "acme-care.org",
+        )
+
+    def test_name_rejects_domain_suffix(self):
+        self.assertIsNone(spoken_domain("sunrise home health dot com", "Home Health"))
+
     def test_care_dot_health(self):
         self.assertEqual(spoken_domain("go to acme care dot health"), "acmecare.health")
 
