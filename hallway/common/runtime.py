@@ -16,7 +16,7 @@ from langchain_core.tools import tool
 from hallway.common.band_cfg import configure_timeouts, credentials, identities
 from hallway.common.brief import Brief, digest
 from hallway.common.llm import llm, InferenceUnavailable
-from hallway.common.room import (action_event, approved_payload, case_state, post,
+from hallway.common.room import (action_event, approved_payload, approved_room_status, case_state, post,
                                 recruit, review, room_records, raw_messages, submit_brief, request_owner)
 
 
@@ -40,6 +40,10 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
         """Read authenticated Band protocol records for the CURRENT room. No room argument."""
         tools = bound(config)
         records = await room_records(tools, ids)
+        if role=='critic':
+            status=approved_room_status(records,tools.room_id)
+            if status is not None:
+                return status
         if role in ('grapher','closer'):
             return approved_payload(records,tools.room_id)
         if role in ('scribe','researcher') and os.getenv('ENABLE_DRUG_RESEARCH')=='1':

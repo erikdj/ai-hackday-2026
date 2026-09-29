@@ -533,9 +533,30 @@ async def submit_brief(tools: AgentTools, ids: dict[str,str], brief: Brief) -> d
     return payload
 
 
+
+def approved_room_status(records: list[dict], room_id: str) -> dict | None:
+    """Read-only status for Critic's authenticated downstream room notifications."""
+    if any(r['kind']=='TRANSCRIPT' for r in records):
+        return None
+    if not any(r['kind']=='APPROVAL' and r.get('scope')=='approved_room' for r in records):
+        return None
+    approval=approved_payload(records,room_id)
+    receipts=[r for r in records if r['kind']=='GRAPH_WRITTEN'
+              and r.get('case_id')==approval['case_id']
+              and r.get('approved_room_id')==room_id
+              and r.get('revision')==approval['revision']
+              and r.get('digest')==approval['digest']]
+    return {'status':'APPROVED_ROOM_STATUS','room_kind':'approved',
+            'approval':approval,'graph_receipts':receipts}
+
+
 async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_reasons: list[str]) -> dict:
     messages=await raw_messages(tools)
-    state=case_state(decode_messages(messages,ids))
+    records=decode_messages(messages,ids)
+    boundary_status=approved_room_status(records,tools.room_id)
+    if boundary_status is not None:
+        return boundary_status
+    state=case_state(records)
     current=state['brief']
     if not current:
         return {'status':'WAITING_FOR_BRIEF'}
