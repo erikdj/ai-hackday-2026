@@ -109,6 +109,31 @@ class BoundaryTests(unittest.IsolatedAsyncioTestCase):
                 result=await tool.ainvoke({},config={'configurable':{'thread_id':boundary.room_id}})
             self.assertEqual(result['lineage_verification'],expected)
 
+    async def test_critic_boundary_receipt_is_read_only_and_room_authenticated(self):
+        from hallway.common.room import post
+        with self.enabled(),patch('hallway.common.room.AgentTools',side_effect=bind):case,boundary=await self.approved_case()
+        approval=approved_payload(await room_records(boundary,IDS),boundary.room_id)
+        boundary.role='grapher'
+        await post(boundary,'GRAPH_WRITTEN',{'status':'GRAPH_WRITTEN','case_id':case.room_id,
+            'approved_room_id':boundary.room_id,'revision':approval['revision'],'digest':approval['digest']},['critic'],IDS)
+        boundary.role='critic'
+        holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=case)))}
+        tools=make_tools('critic',holder,IDS)
+        read=next(t for t in tools if t.name=='band_read_case')
+        count=len(boundary.messages)
+        with patch('hallway.common.runtime.AgentTools',side_effect=bind):
+            result=await read.ainvoke({},config={'configurable':{'thread_id':boundary.room_id}})
+        self.assertEqual(result['room_kind'],'approved');self.assertEqual(len(result['graph_receipts']),1)
+        self.assertEqual((await review(boundary,IDS,True,[]))['status'],'APPROVED_ROOM_STATUS')
+        self.assertEqual(len(boundary.messages),count)
+        original=boundary.room_id;boundary.room_id='wrong-room'
+        with self.assertRaises(ValueError):await review(boundary,IDS,True,[])
+        boundary.room_id=original
+        for message in boundary.messages:
+            if '"kind": "APPROVAL"' in message.get('content',''):
+                message['sender_id']=IDS['scribe']
+        with self.assertRaises(ValueError):await review(boundary,IDS,True,[])
+
     async def test_missing_live_graph_config_fails_closed(self):
         with self.enabled(),patch('hallway.common.room.AgentTools',side_effect=bind):case,boundary=await self.approved_case()
         holder={'agent':SimpleNamespace(runtime=SimpleNamespace(link=SimpleNamespace(rest=case)))}
