@@ -110,9 +110,44 @@ def readable_summary(kind: str, payload: dict) -> str:
         'HANDOFF': 'Handoff details recorded.',
         'OUTPUT': 'Worker status recorded.',
     }
+    if kind=='BRIEF':
+        brief=payload.get('brief')
+        brief=brief if isinstance(brief,dict) else {}
+        count=lambda key: len(brief[key]) if isinstance(brief.get(key),list) else 0
+        clinical=sum(count(key) for key in ('meds','allergies','pending_results','findings'))
+        follow_ups=brief.get('follow_ups') if isinstance(brief.get('follow_ups'),list) else []
+        unresolved=sum(isinstance(item,dict) and item.get('status')=='unresolved' for item in follow_ups)
+        facts[kind]=f'Revision {revision}: {clinical} clinical items, {len(follow_ups)} follow-ups ({unresolved} unresolved). Ready for Critic review.'
+    if kind=='OWNER_REQUEST':
+        facts[kind]=f'Revision {revision}: 1 follow-up needs a human owner. Reply to both Scribe and Critic.'
     if kind=='VERDICT':
         verdict=payload.get('verdict')
-        facts[kind]=f'{verdict} for revision {revision}.' if verdict in ('VETO','APPROVE') else f'Review recorded for revision {revision}.'
+        if verdict=='VETO':
+            reasons=payload.get('reasons') if isinstance(payload.get('reasons'),list) else []
+            categories={}
+            # Headings use a fixed taxonomy and counts only, never copy model or
+            # transcript text (which may contain direct identifiers or markup).
+            for reason in reasons:
+                reason=reason.casefold() if isinstance(reason,str) else ''
+                if any(term in reason for term in ('identifier','dob','mrn','phone','address')):
+                    category='identifier checks'
+                elif any(term in reason for term in ('owner','human reply','provenance')):
+                    category='ownership checks'
+                elif 'quote' in reason:
+                    category='quote checks'
+                elif any(term in reason for term in ('url','source')):
+                    category='source checks'
+                else:
+                    category='judgment checks'
+                categories[category]=categories.get(category,0)+1
+            counts=', '.join(f'{category}: {count}' for category,count in categories.items())
+            facts[kind]=f'VETO for revision {revision}: {len(reasons)} issues'+(f' ({counts}).' if counts else '.')
+        elif verdict=='APPROVE':
+            unresolved=payload.get('unresolved_follow_ups')
+            count=len(unresolved) if isinstance(unresolved,list) else 0
+            facts[kind]=f'APPROVE for revision {revision}; {count} unresolved follow-ups remain visible.'
+        else:
+            facts[kind]=f'Review recorded for revision {revision}.'
     if kind not in facts:
         raise ValueError('Unknown protocol post kind')
     return f'**{kind}** — {facts[kind]}'

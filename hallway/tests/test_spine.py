@@ -77,6 +77,21 @@ class ValidationTests(unittest.TestCase):
                         'HANDOFF/1\n{}\n'+message['content']):
             message_copy=dict(message,content=content)
             self.assertEqual(decode_messages([message_copy],IDS),[])
+    def test_readable_summaries_count_only_and_classify_without_copying_reasons(self):
+        brief={'revision':2,'brief':{'findings':[{'text':'PRIVATE PATIENT'}],'meds':[{},{}],
+               'follow_ups':[{'status':'unresolved','owner':'PRIVATE OWNER'},{'status':'pending'}]}}
+        summary=readable_summary('BRIEF',brief)
+        self.assertIn('3 clinical items, 2 follow-ups (1 unresolved)',summary)
+        reasons=['Identifier PRIVATE PATIENT leaked','Quote PRIVATE DETAIL absent','Owner PRIVATE OWNER unverified','Reason PRIVATE JUDGMENT']
+        summary+=readable_summary('VERDICT',{'revision':2,'verdict':'VETO','reasons':reasons})
+        self.assertIn('4 issues',summary)
+        self.assertIn('identifier checks: 1',summary)
+        self.assertIn('ownership checks: 1',summary)
+        self.assertNotIn('PRIVATE',summary)
+        owner=readable_summary('OWNER_REQUEST',{'revision':2,'follow_up_id':'PRIVATE','prompt':'PRIVATE'})
+        self.assertIn('1 follow-up',owner);self.assertNotIn('PRIVATE',owner)
+        approved=readable_summary('VERDICT',{'revision':3,'verdict':'APPROVE','unresolved_follow_ups':['PRIVATE']})
+        self.assertIn('1 unresolved follow-ups',approved);self.assertNotIn('PRIVATE',approved)
     def test_summary_does_not_copy_identifiers_and_cannot_authorize_payload(self):
         for kind,payload in [('TRANSCRIPT',{'recording':RECORDING}),
                              ('BRIEF',{'revision':1,'brief':BASIC}),
