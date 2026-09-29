@@ -14,6 +14,9 @@ this file is the offline summary. Update it in every PR that changes the plan.
 - [x] JV-104 Neo4j starter recipe written into sponsor-integrations.md (implementation is JV-106)
 
 ## Next
+- Scribe repair guard (JV-116 post-mortem, run 3 at 14:53): `submit_brief` rejects a repair when the model rewrites a source-backed follow-up quote while adding the owner. Accept a repaired quote that contains, or is contained in, the original transcript-backed quote, and tell the model in the prompt to copy quotes byte for byte on repair.
+- Owner reply binding (run 2 at 14:44): a bare "I'll own it" binds only to the latest OWNER_REQUEST. When several requests are open, either bind to the only unanswered one or have the request text ask for `/own <id> Name`; document the two-reply runbook until then.
+- Scribe early unresolved publish (run 1 at 14:42): the prompt lets Scribe mark follow-ups unresolved and publish without waiting for the human; add a minimum wait or require an explicit human "leave it unassigned" before the unresolved path.
 
 - [ ] JV-99 Wire the agent's LLM to Crusoe end to end
 - [ ] JV-102 Demo script written; rehearsal pending a green `make demo`

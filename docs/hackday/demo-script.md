@@ -195,9 +195,9 @@ compliant" (say "identifier gate", "boundary control"); "real patient".
 
 | # | Time | Fixture | Upload → APPROVE | What broke | Fix |
 | --- | --- | --- | --- | --- | --- |
-| 1 | | handoff_2 | | | |
-| 2 | | handoff_2 | | | |
-| 3 | | handoff_2 | | | |
+| 1 | 14:42 | handoff_2 | 51 s (case `d92244bd`, approved room `fe086da2`, Aura write) | No human beat: Scribe requested an owner for one follow-up, then 10 s later published rev 3 with two follow-ups marked unresolved and the Critic approved (its prompt allows that when the request is on record). Veto count 2. | None; this is the approved-with-unresolved shape. |
+| 2 | 14:44 | handoff_2 | timed out at 90 s (case `6a2556ea`) | Two unowned follow-ups, four OWNER_REQUEST posts. Erik's "I'll own it" (both mentions) bound to the latest request only; the other stayed unowned and the Scribe read the case, called no tool and waited. | Runbook: answer each "Who owns this?" with `/own <id> Erik Jones` mentioning both agents; no code change. |
+| 3 | 14:53 | handoff_2 | not approved (case `2a6bee3a`) | Owner reply landed within seconds; the Scribe's rev 2 was rejected twice by the deterministic guard "Repair must preserve the original source-backed follow-up quote" because the model rewrote a follow-up quote while adding the owner. Band shows "Internal error while processing message" from Scribe. | Post-mortem on JV-116; take used the fallback (run 1 shape plus the morning rooms `a9806e53` / `19ecdb31`). |
 
 ## Delete tests to say out loud if asked
 
