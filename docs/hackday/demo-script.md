@@ -1,31 +1,107 @@
 # Demo script: Safe Scribe by TrustEdge AI
 
-Linear JV-102. Judging is live. Two minutes on screen, then questions. Source: the Safe Scribe
-brief (`docs/hackday/safe-scribe-build-brief.md`, sections 2 and 8) and the pivot decision in the
-Linear project update of 11:10 PDT.
+Linear JV-102. This is the script for the **recorded** submission: a two-minute demo followed by a
+three-minute technical dive, recorded 14:40–15:10 PDT, submitted by 15:25. Every line below
+matches what was observed live by 13:05 PDT; where a beat is not yet live the fallback line is
+given and must be used instead. Never say a sponsor did something it did not do on the recording.
+
+Say once, early: **every patient is synthetic.** Names, dates of birth, record numbers and phone
+numbers were invented for the fixture and spoken by a text-to-speech voice.
 
 ## One-sentence claim
 
-A nurse-to-nurse shift handoff recording becomes a Band case room where agents on Crusoe extract
-a quoted clinical brief, a Critic blocks unsupported claims, unowned follow-ups, and any
-identifier trying to leave the room, and Neo4j records exactly which agent saw which field.
+A clinical handoff recording becomes a Band case room where agents on Crusoe extract a quoted
+brief, a Critic on a second model family blocks unsupported claims, unowned follow-ups and any
+patient identifier trying to leave the room, and Neo4j records which agent saw which field.
 
-Say once, early: the patient is synthetic.
+## Before pressing record (checklist)
 
-## Two-minute flow
+- [ ] Processes on Jaiven's laptop restarted under `doppler run` on the code-freeze commit with
+      pins v4 (Scribe `zai-org/GLM-5.3` low reasoning, Desk and Critic `Qwen/Qwen3.8-27B` thinking
+      off). `ENABLE_APPROVED_ROOM=1` only if the 13:30 phase-2 receipt was observed live.
+      `ENABLE_DRUG_RESEARCH` stays unset unless a live research run is on JV-107.
+- [ ] Band: lobby renamed `Safe Scribe lobby`; no stale case rooms open on screen.
+- [ ] Dashboard `python -m hallway.dashboard.app` running under `doppler run` on port 8090
+      against Aura; `/mcp/health` answers.
+- [ ] Terminal with `doppler run -- make demo FIXTURE=handoff_2` ready but not started.
+- [ ] Windows: Band (room list visible), terminal, dashboard tab, DuploCloud studio tab.
+- [ ] `hallway/fixtures/handoff_2.wav` and `.txt` at hand; the planted lines are in
+      `hallway/fixtures/README.md`.
+- [ ] Time a full dry run. Target: upload to APPROVE under 90 seconds. Record the number.
 
-| # | Erik says / does | Judges see | Sponsor tool visible | Proof it is real |
-| --- | --- | --- | --- | --- |
-| 1 | Drops the `.wav` on the upload page, which runs on this laptop. "Zero bytes of audio left this laptop." | Desk transcribes on-device and posts only text into the Band room; log line with the Crusoe model id. | Crusoe, faster-whisper (local) | Log shows local transcription; the Vultr compose file has no Desk |
-| 2 | "Scribe extracts the handoff brief. Every item carries a verbatim quote." | `case-<slug>` room opens. Scribe posts the Safe Scribe brief. Execution events stream. | Band, Crusoe | Quotes are substrings of the transcript on screen |
-| 3 | "A drug was named, so Scribe opens a research room and recruits a researcher. It sees only the drug names." | Room list grows: `case-…-research` appears with Researcher. It posts one interaction or guideline fact with a URL; Scribe relays it. | Band runtime recruitment, Brave | URL opens; research room history shows drug names only |
-| 4 | "Now the Critic, on a different model family. Two vetoes." Erik, as charge nurse, types exactly `@Scribe @Critic I'll own it` in the room when asked (Band delivers only to mentioned agents). | VETO 1: follow-up #2 has no owner. Scribe asks the room; Erik answers; Scribe records the owner with that message as provenance. VETO 2, the hero: patient name and DOB in the outbound brief. Scribe redacts. APPROVE revision 3. The approved room appears with Grapher and Closer; the redacted brief and the access manifest cross into it. The case room's roster never changes. | Band veto and gate, human in the room, Crusoe (two model ids) | The identifiers and the unowned follow-up are deliberate lines in the recording; the owner comes from a human, never invented |
-| 5 | "Grapher writes memory and lineage, from the approved room, off the manifest. It never saw the transcript." | Neo4j nodes plus ACCESSED edges. Dashboard query "which agents saw identifiers?" answers Desk, Scribe, Critic. Grapher, Researcher, Closer are absent. | Neo4j | Live query result on screen |
-| 6 | "Closer lives in the approved room. It only ever gets the redacted brief; Band's room membership is the boundary." | Closer drafts the discharge follow-up from the redacted brief only. Open the approved room's history: no transcript, no name. | Band enforced boundary | Room history on screen (stretch: Closer under a second account) |
-| 7 | Close: "Audio never left the laptop. Text only touched Crusoe. Nothing identifiable crossed the boundary. Band enforced it, Neo4j proves it. Seven sponsor tools, each with a delete test in the README, all self-serve, built by two people and two agents in four hours." | README tool table with delete tests. | All | `make demo` output |
+## Two-minute demo
 
-Timing target from upload to APPROVE: under 90 seconds. Report transcription time separately if
-asked.
+| # | Time | Erik says / does | On screen | Sponsor | Fallback if not live |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0:00 | "Clinics want AI scribes. Compliance says no twice: data leaves for a hyperscaler, and nobody can prove who saw what. Safe Scribe is the scribe a compliance officer can say yes to. The patient you'll hear is synthetic." | Title slide or README top | | |
+| 1 | 0:15 | "The handoff was recorded on this laptop. It is transcribed here, by faster-whisper. Zero bytes of audio leave the machine." Runs `python -m hallway.ingest.transcribe hallway/fixtures/handoff_2.wav --inbox inbox --print`. | Log line `0 bytes of audio left this machine`, transcript text | faster-whisper (local, open source) | Play 10 s of the `.wav`, then `cat hallway/fixtures/handoff_2.txt`. Say "transcription runs locally; for time we use the pre-transcribed text." |
+| 2 | 0:35 | "Text only goes to Desk. In Band I ask Desk to open a case." In the lobby: mention Desk, `/ingest fixture:handoff_2`. | Room `Safe Scribe case <id>` appears with Desk, Scribe, Critic and Erik. TRANSCRIPT posted. | Band | If the inbox watcher (PR #33) is wired by freeze, drop the file instead and let Desk open the case from the inbox. |
+| 3 | 0:50 | "Scribe, on GLM-5.3 served by Crusoe, extracts the brief. Every item carries a verbatim quote from the transcript." | BRIEF rev 1 in the room: meds (warfarin, ciprofloxacin), allergies, pending results, follow-ups. Desk log shows provider and model id. | Crusoe, Band | None needed; observed live in cases `4be3e276` and `a9806e53`. |
+| 4 | 1:05 | "Now the Critic, a different model family, also on Crusoe. Veto one: a follow-up nobody owns. It does not guess. It asks the room." Erik types `@Scribe @Critic I'll own it`. | VETO rev 1 (unowned follow-up `fu-daughter-call`), OWNER_REQUEST, Erik's reply, owner recorded with the message id as provenance | Crusoe (2nd family), Band human-in-room | None needed; observed live. |
+| 5 | 1:25 | "Veto two, the one that matters: the patient's name and date of birth are in the outbound brief. Redacted. Approved." | VETO rev 2 (identifier in outbound brief), BRIEF rev 3 redacted, APPROVE rev 3 | Band gate | If APPROVE has not been observed live by freeze: stop after VETO 1 and say "the identifier veto and approval run the same loop; we show the graph from the approved envelope." Do not claim the approve on tape. |
+| 6 | 1:40 | "Only now does anything leave the room, and only into a separate approved room that has never held the transcript. Grapher writes memory and lineage to Neo4j." Switches to dashboard: `who_saw_identifiers`. | Room `Safe Scribe approved <id>` with Critic, Grapher, Erik. Dashboard answers **Desk, Scribe, Critic**. | Band boundary, Neo4j Aura | If phase 2 was not observed live: before recording, the contributor session re-runs its verified `Neo4jStore` probe so Aura holds one encounter with lineage, then show the dashboard answer and say "the Grapher's delivery from the approved room is gated and not in this recording; the writer it calls and this query were verified against Aura separately today." |
+| 7 | 1:52 | "The same lineage question is exposed as an MCP tool and registered in the DuploCloud studio, so a compliance agent can ask it." | DuploCloud studio: MCP server "Safe Scribe", scope `safe-scribe-lineage`; a `tools/call` answer | DuploCloud | If the studio tab misbehaves: `curl` the `/mcp` endpoint on 8090 and show the same answer. |
+| 8 | 2:00 | "Audio never left the laptop. Text touched only Crusoe. Nothing identifiable crossed the boundary. Band enforced it, Neo4j proves it." | README tool table | All | |
+
+## Three-minute technical dive
+
+Speak to the architecture diagram in `docs/hackday/submission-readme.md`, then hop to code.
+
+1. **Two rooms, one boundary (0:40).** Case room: Desk, Scribe, Critic, the charge nurse.
+   Approved room: Critic, Grapher, the nurse. Roster is checked on every write; an unexpected
+   participant raises. Show `publish_approved_boundary` in `hallway/common/room.py`: created only
+   on a digest-matched APPROVE, must differ from the case room, `identifier_violations` on the
+   outbound envelope blocks delivery.
+2. **Provenance is message ids, not model memory (0:30).** Every room message is a readable
+   summary plus a `SAFESCRIBE/1` JSON envelope with revision and digest. Decoders accept exactly one
+   envelope per message and only from the authenticated sender for that kind. The owner of a
+   follow-up is the human's Band message id. Show `decode_messages`.
+3. **Two model families on Crusoe, pinned from live evidence (0:30).** Thirteen models probed for
+   tool calling (`scripts/check_crusoe_tools.py`). The offline probe picked Deepseek-V4-Flash for
+   Scribe; live it emitted 2,077 tokens and no brief. GLM-5.3 at low reasoning produced the brief in
+   about four seconds. Critic is Qwen3.8-27B with thinking off, a different family by rule. If
+   Crusoe is unavailable the case pauses; it never routes to another provider.
+4. **Lineage in Neo4j (0:30).** Pseudonymous patient (`pseudo_id` from a local salt), encounter,
+   clinical nodes, and `(Agent)-[:ACCESSED]->(Field)` edges from the access manifest. The canned
+   question "which agents saw identifiers" is a five-line Cypher match. Merge across encounters is
+   by pseudo id only, never by similarity.
+5. **Research, gated (0:20).** Researcher is recruited into a separate drug-only room; the request
+   carries drug names from a bounded vocabulary and an opaque routing id. Brave returns one sourced
+   fact per drug (live: ciprofloxacin → drugs.com in 1.7 s); Similarweb gives an organization
+   legitimacy fact for a spoken referral domain (live: sunrisehomehealth.com, unranked). Say
+   plainly whether the room recruitment ran live today or is shown from tests.
+6. **How it was built (0:30).** Two humans, three agent sessions. Every task a Linear issue, every
+   change a PR with an independent local AI review (Astra via Codex CLI) before merge, a third
+   Claude session as overseer holding the clock and challenging claims not backed by a live run.
+   Doppler as the single secrets store. Thirty PRs merged in the day. The integration ledger
+   (`docs/hackday/integration-ledger.md`) says verified, mocked, attempted or deferred per tool,
+   and the README table is generated from it.
+
+## Sponsor status to state on tape (as of 13:05 PDT, update at freeze)
+
+| Tool | Say | Do not say |
+| --- | --- | --- |
+| Crusoe | Every agent's inference; two model families; pins from a live probe | anything about fine-tuning or hosting |
+| Band | Live case room, roster gate, vetoes, human owner in the room, approved room built and gated | that the approved room ran live unless the 13:30 receipt exists |
+| Neo4j | Aura instance, real writes and the lineage query verified | that lineage came from a live room unless phase 2 ran |
+| DuploCloud | MCP server, provider and scope registered in the studio; tool call answers | that DuploCloud runs the agents |
+| Brave | Live sourced fact per drug | that the Researcher joined a live case unless it did |
+| Similarweb | Live organization fact for a spoken referral domain | that it verifies a provider's credentials |
+| faster-whisper | Local transcription on the laptop | that it is a sponsor |
+| Nebius, Vultr | Attempted, not integrated (key type mismatch; no time for a safe deploy) | anything else |
+| OpenRouter, Merge.dev | Not used | anything |
+| xAI | Text-to-speech used to build the synthetic fixtures; development tooling only | that it is part of the product |
+
+Words never to use: HANDOFF or HALLWAY as the product name; "de-identified" or "HIPAA
+compliant" (say "identifier gate", "boundary control"); "real patient".
+
+## Rehearsal log
+
+| # | Time | Fixture | Upload → APPROVE | What broke | Fix |
+| --- | --- | --- | --- | --- | --- |
+| 1 | | handoff_2 | | | |
+| 2 | | handoff_2 | | | |
+| 3 | | handoff_2 | | | |
 
 ## Delete tests to say out loud if asked
 
@@ -34,38 +110,6 @@ asked.
 | Crusoe | No agent has a brain, and the text would have to go to a hyperscaler API. |
 | Band | No room, no roster, no gate, no veto, no boundary. There is no fallback orchestrator. |
 | Neo4j | No memory across encounters and no proof of who saw what. |
+| DuploCloud | The lineage answer is not reachable by other agents as a tool. |
 | Brave | Researcher has nothing to post; Critic cannot verify enrichment. |
-| Nebius | No "possible prior encounter" hints; identity itself is the locally assigned pseudo_id, never similarity (tier 2). |
-| OpenRouter | No ask-the-graph on the dashboard, no last-resort fallback (tier 2). |
-| Vultr | Demo rides on venue wifi and a laptop (tier 2). |
-
-Merge.dev was cut at the pivot (no healthcare fit). Plaud: no device.
-
-## Cold-start checklist (run twice before judging)
-
-- [ ] `doppler run -- ./scripts/check-crusoe.sh` and `doppler run -- python3 scripts/check_crusoe_tools.py --max 20` pass; `CRUSOE_MODEL_STRONG/FAST/CRITIC` in Doppler are zai-org/GLM-5.3 (reasoning_effort=low; fallback deepseek-ai/Deepseek-V4-Flash with a 4096 cap), Qwen/Qwen3.8-27B, Qwen/Qwen3.8-27B (thinking off via CRUSOE_DISABLE_THINKING_MODELS) (pins v4, live evidence on JV-116)
-- [ ] Six Band agents connected; stale case rooms archived (stretch only: Closer on Erik's second account)
-- [ ] Neo4j Aura instance awake (free tier pauses); a prior encounter for the synthetic patient loaded so the lineage and history queries return rows
-- [ ] Brave key live; `MOCK_*` all 0 for tier 1
-- [ ] Vultr VM up, `docker compose ps` all Up; dashboard URL bookmarked (laptop fallback ready)
-- [ ] `hallway/fixtures/handoff_2.wav` and `handoff_2.txt` ready (synthetic, xAI voices); the planted lines are the full name + DOB in line one and "Someone should call the daughter about discharge, she's the main contact."
-- [ ] Erik is logged into app.band.ai on the demo laptop; his account is the human participant in the case room, and he replies `@Scribe @Critic I'll own it` when Scribe asks (practised once; the mentions must resolve)
-- [ ] Scribe extraction on the pinned STRONG model completes in under 15 s on `handoff_2` (thinking off or a non-reasoning model); a 90 s timeout is correct but too slow for a two-minute demo
-- [ ] `make demo` green in the last 15 minutes
-- [ ] Recorded run (screen capture) saved locally in case wifi or a sponsor API fails
-
-## Fallbacks
-
-| Failure | Do |
-| --- | --- |
-| Wifi drops | Play the recorded run; narrate the same beats. |
-| Crusoe rate limit | Retry once (model B). Transcript-bearing agents then fail closed and the room says "case paused"; say so honestly and show the earlier Crusoe run. Never route the transcript to another provider. |
-| Band web app slow | Keep the terminal event stream visible; it shows the same events. |
-| Transcription slow | Drop `fixtures/handoff_2.txt` instead of the `.wav`. |
-| Neo4j asleep | Wake it in the console before the demo; if it fails, show the lineage screenshot from the rehearsal. |
-| Boundary room fails to receive | Show the Critic's APPROVE and the redacted brief in the case room; state the boundary as designed, not as shown. |
-
-## Rehearsal log
-
-| Time | Upload to APPROVE | Result | Fix |
-| --- | --- | --- | --- |
+| Similarweb | A spoken referral organization cannot be checked for legitimacy. |
