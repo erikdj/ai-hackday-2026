@@ -1,4 +1,4 @@
-"""In-memory graph store for HANDOFF. Same interface as a later Neo4j backend."""
+"""In-memory graph store for Safe Scribe. Same interface as a later Neo4j backend."""
 
 IDENTIFIER_FIELDS = {"patient_name", "dob", "mrn", "phone", "address"}
 

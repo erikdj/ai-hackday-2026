@@ -1,19 +1,19 @@
 # ADR-0002: Tech stack
 
-Status: Accepted 2026-09-29 (Erik merged PR #3; Jaiven's design-partner review on the PR: accept). Derived from Jaiven's HALLWAY
-build brief (PR #4, `docs/hackday/hallway-build-brief.md`), amended at the 11:10 PDT pivot to
-HANDOFF (`docs/hackday/handoff-build-brief.md`) and the review on Linear JV-95.
+Status: Accepted 2026-09-29 (Erik merged PR #3; Jaiven's design-partner review on the PR: accept). Derived from Jaiven's first
+build brief (PR #4, since removed), amended at the 11:10 PDT pivot to
+Safe Scribe (`docs/hackday/safe-scribe-build-brief.md`) and the review on Linear JV-95.
 
 ## Context
 
-**The idea: HANDOFF (pivot, 11:10 PDT).** A nurse-to-nurse shift handoff recording (transcribed
+**The idea: Safe Scribe (pivot, 11:10 PDT).** A nurse-to-nurse shift handoff recording (transcribed
 on-device) becomes a Band case room where agents on Crusoe extract a quoted clinical brief, a
 Critic blocks unsupported claims, unowned follow-ups, and any direct identifier trying to leave
 the room, and Neo4j records which agent saw which field. Buyer: clinics that cannot send PHI to a
 hyperscaler LLM API and cannot prove afterwards who saw what. Merge.dev is cut; the Closer
 boundary room under a second Band account is core. The stack below is unchanged.
 
-**The original idea: HALLWAY.** A conversation (typed notes, pasted transcript, or a 60-second recording
+**The first idea (superseded).** A conversation (typed notes, pasted transcript, or a 60-second recording
 transcribed locally) becomes a Band case room where a crew of agents, all thinking on Crusoe,
 argues before it commits: extract facts with verbatim quotes, recruit a researcher only if a
 company is named, a Critic on a different model family vetoes anything unsupported, and only then
@@ -43,7 +43,7 @@ Sponsor tool tiers (from the brief, amended by review and the pivot): Tier 1 Cru
 Tier 2 OpenRouter (ask-the-graph over the pseudonymized graph only), Nebius, Brave, Vultr.
 Merge.dev cut at the pivot. Amendment: DuploCloud is self-serve (local Docker
 devkit, work email only) and stays a Tier 2 candidate, taken up only after `make demo` is green
-on Vultr: register HALLWAY as a skill or MCP server so a ticket can open a case. Plaud is cut unless a device appears; the pitch says "any
+on Vultr: register Safe Scribe as a skill or MCP server so a ticket can open a case. Plaud is cut unless a device appears; the pitch says "any
 transcript", not "Plaud transcript".
 
 ## Consequences

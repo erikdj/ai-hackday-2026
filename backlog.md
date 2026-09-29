@@ -5,10 +5,10 @@ this file is the offline summary. Update it in every PR that changes the plan.
 
 ## Now
 
-- [x] JV-95 Idea: HANDOFF (pivoted from HALLWAY 11:10 PDT; brief in docs/hackday/handoff-build-brief.md)
+- [x] JV-95 Idea: Safe Scribe (brief in docs/hackday/safe-scribe-build-brief.md)
 - [x] JV-96 Tech stack decision, ADR-0002 accepted (PR #3)
 - [ ] JV-97 Crusoe account, API key, hello-world inference call (prize qualification gate)
-- [ ] JV-100 Band integration that passes the delete test (Best Use of BAND, $1,000). Tier 1 for HALLWAY
+- [ ] JV-100 Band integration that passes the delete test (Best Use of BAND, $1,000). Tier 1 for Safe Scribe
 - [x] JV-104 Neo4j starter recipe written into sponsor-integrations.md (implementation is JV-106)
 
 ## Next
@@ -17,7 +17,7 @@ this file is the offline summary. Update it in every PR that changes the plan.
 - [ ] JV-102 Demo script written; rehearsal pending a green `make demo`
 - [x] JV-109 Synthetic handoff fixtures (.txt + .wav, xAI voices) so the demo needs no live recording
 
-## HANDOFF build phases (Jaiven's agent, Astra in Codex)
+## Safe Scribe build phases (Jaiven's agent, Astra in Codex)
 
 - [ ] JV-105 Phase 1 spine: Desk + Scribe + Critic on Crusoe in a Band room, both vetoes (cut line 11:50)
 - [ ] JV-106 Phase 2 memory + lineage: Grapher to Neo4j with ACCESSED edges, .wav to inbox, compose (cut line 12:45)

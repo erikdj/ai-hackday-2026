@@ -1,7 +1,7 @@
-# Demo script: TrustEdge AI Safe Scribe (working name HANDOFF)
+# Demo script: Safe Scribe by TrustEdge AI
 
-Linear JV-102. Judging is live. Two minutes on screen, then questions. Source: the HANDOFF
-brief (`docs/hackday/handoff-build-brief.md`, sections 2 and 8) and the pivot decision in the
+Linear JV-102. Judging is live. Two minutes on screen, then questions. Source: the Safe Scribe
+brief (`docs/hackday/safe-scribe-build-brief.md`, sections 2 and 8) and the pivot decision in the
 Linear project update of 11:10 PDT.
 
 ## One-sentence claim
@@ -17,7 +17,7 @@ Say once, early: the patient is synthetic.
 | # | Erik says / does | Judges see | Sponsor tool visible | Proof it is real |
 | --- | --- | --- | --- | --- |
 | 1 | Drops the `.wav` on the upload page, which runs on this laptop. "Zero bytes of audio left this laptop." | Desk transcribes on-device and posts only text into the Band room; log line with the Crusoe model id. | Crusoe, faster-whisper (local) | Log shows local transcription; the Vultr compose file has no Desk |
-| 2 | "Scribe extracts the handoff brief. Every item carries a verbatim quote." | `case-<slug>` room opens. Scribe posts the HANDOFF brief. Execution events stream. | Band, Crusoe | Quotes are substrings of the transcript on screen |
+| 2 | "Scribe extracts the handoff brief. Every item carries a verbatim quote." | `case-<slug>` room opens. Scribe posts the Safe Scribe brief. Execution events stream. | Band, Crusoe | Quotes are substrings of the transcript on screen |
 | 3 | "A drug was named, so Scribe opens a research room and recruits a researcher. It sees only the drug names." | Room list grows: `case-…-research` appears with Researcher. It posts one interaction or guideline fact with a URL; Scribe relays it. | Band runtime recruitment, Brave | URL opens; research room history shows drug names only |
 | 4 | "Now the Critic, on a different model family. Two vetoes." Erik, as charge nurse, types exactly `@Scribe @Critic I'll own it` in the room when asked (Band delivers only to mentioned agents). | VETO 1: follow-up #2 has no owner. Scribe asks the room; Erik answers; Scribe records the owner with that message as provenance. VETO 2, the hero: patient name and DOB in the outbound brief. Scribe redacts. APPROVE revision 3. The approved room appears with Grapher and Closer; the redacted brief and the access manifest cross into it. The case room's roster never changes. | Band veto and gate, human in the room, Crusoe (two model ids) | The identifiers and the unowned follow-up are deliberate lines in the recording; the owner comes from a human, never invented |
 | 5 | "Grapher writes memory and lineage, from the approved room, off the manifest. It never saw the transcript." | Neo4j nodes plus ACCESSED edges. Dashboard query "which agents saw identifiers?" answers Desk, Scribe, Critic. Grapher, Researcher, Closer are absent. | Neo4j | Live query result on screen |

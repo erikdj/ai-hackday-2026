@@ -1,4 +1,4 @@
-# HANDOFF handoff_2: THE DEMO. Nurse-to-nurse shift handoff, surgical floor, day three after
+# Safe Scribe handoff_2: THE DEMO. Nurse-to-nurse shift handoff, surgical floor, day three after
 # a right hip replacement. Same synthetic patient as case 1 (Neo4j link).
 # Planted lines the Critic must catch:
 #   1. Full name + date of birth in the first line (identifiers must not reach the outbound room).

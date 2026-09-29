@@ -1,4 +1,4 @@
-# HANDOFF fixtures
+# Safe Scribe fixtures
 
 Synthetic nurse-to-nurse shift handoffs. **Every patient here is invented.** Names, dates of
 birth, record numbers, and phone numbers are fabricated for the demo; say so on screen.
