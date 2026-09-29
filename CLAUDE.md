@@ -1,6 +1,6 @@
 # AI Hackday 2026 — team operating rules
 
-This file is the source of truth for every Claude, Grok, and Codex/Astra session working in this
+This file is the source of truth for every human and agent session working in this
 repo. Read it fully before doing anything. Project-level rules here override personal defaults.
 
 ## The event
@@ -19,10 +19,15 @@ repo. Read it fully before doing anything. Project-level rules here override per
 
 | Who | Role |
 | --- | --- |
-| **Claude Code** | Orchestrator and project lead. Plans, breaks work into Linear issues, delegates coding, runs reviews, opens PRs, keeps docs current. Does **not** write product code itself. |
-| **Grok** (grok plugin) | Writes **all** code: features, tests, fixes, refactors, scaffolding. |
-| **Astra** (Codex CLI, model `gpt-6-astra`) | Reviews **every** change before a PR is opened. Adversarial design review on request. |
 | **Erik and Jaiven** | Decide the idea and the stack, sign off on PRs, merge. |
+| **Orchestrator agent** | Plans, breaks work into Linear issues, delegates coding, runs reviews, opens PRs, keeps docs current. On Erik's machine this is Claude Code. |
+| **Coder agent** | Writes the code: features, tests, fixes, refactors, scaffolding. On Erik's machine this is Grok (grok plugin). |
+| **Reviewer agent** | Reviews every change locally before a PR is opened. On Erik's machine this is Astra (`gpt-6-astra` via Codex CLI). |
+
+**Each contributor picks their own local agent team.** Not everyone has Astra or Grok. What is
+fixed is the shape (orchestrate, code, review locally, PR, human merge), not the vendors. Say which
+tools you used in the PR body. Erik's setup is documented below as the reference configuration;
+adapt the commands to whatever you run.
 
 ## Hard rules
 
@@ -35,11 +40,14 @@ repo. Read it fully before doing anything. Project-level rules here override per
 3. **Humans approve PRs.** Erik or Jaiven signs off and merges. Anyone may approve their own PR or
    another's PR. **No gating:** no required reviewers, no required status checks, no branch
    protection that blocks a merge. CI is informational only.
-4. **Every change goes through Astra review before the PR is opened.** Astra runs **locally** via
-   the Codex CLI or the codex plugin in this session. Do **not** rely on a GitHub bot or a PR
-   round trip. See "Astra review" below.
-5. **All coding is done with Grok**, invoked through the grok plugin skills or MCP tools in this
-   session. Claude does not hand-write implementation code. See "Coding with Grok" below.
+4. **Every change gets an independent AI review locally before the PR is opened.** On Erik's
+   machine that is Astra via the Codex CLI or codex plugin. Other contributors use whatever
+   reviewer agent they have. The review runs **in the session**, not as a GitHub bot or PR round
+   trip. Paste the summary into the PR body. See "Reviewer agent: Astra (reference)" below.
+5. **Coding is delegated to a coder agent, separate from the orchestrator.** On Erik's machine
+   that is Grok via the grok plugin skills or MCP tools; the orchestrator (Claude) does not
+   hand-write implementation code. Other contributors use their own coder agent. See "Coder
+   agent: Grok (reference)" below.
 6. **Crusoe is mandatory.** The product must use Crusoe in a way judges can see (model served by
    Crusoe via Managed Inference or an OpenRouter preset pinned to `crusoe`). Never ship a demo path
    that silently falls back to another provider.
@@ -52,18 +60,18 @@ repo. Read it fully before doing anything. Project-level rules here override per
 
 1. Confirm or create the Linear issue. Read its description.
 2. `git checkout main && git pull`, then `git checkout -b <linear gitBranchName>`.
-3. Delegate the implementation to Grok (below). Review Grok's diff yourself for scope and safety.
-4. Run tests (once a stack exists). Fix via Grok.
-5. Run Astra review (below). Address CRITICAL and HIGH findings via Grok. Re-run until clean.
+3. Delegate the implementation to your coder agent. Review its diff yourself for scope and safety.
+4. Run tests (once a stack exists). Fix via the coder agent.
+5. Run your reviewer agent. Address CRITICAL and HIGH findings. Re-run until clean.
 6. Update `changelog.md`, `backlog.md`, and README/docs if structure changed.
 7. Commit with conventional commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`).
 8. Push with `-u` and open the PR with `gh pr create` using `.github/PULL_REQUEST_TEMPLATE.md`.
-   Paste the Astra review summary into the PR body.
+   Paste the reviewer agent's summary into the PR body and name the tools you used.
 9. Tell the human operator the PR is ready. They approve and merge. Move the Linear issue.
 
-## Coding with Grok
+## Coder agent: Grok (reference)
 
-Grok runs through the grok plugin (`grok@grok-marketplace`), which is installed and authenticated
+Erik's coder agent. Grok runs through the grok plugin (`grok@grok-marketplace`), which is installed and authenticated
 in subscription mode on this machine.
 
 - Check readiness: `grok_build_status` MCP tool (or `/grok:setup`).
@@ -75,12 +83,15 @@ in subscription mode on this machine.
 - Never make code edits through `grok_cli` / `/grok:cli` (no provenance). Use it only for
   non-editing subcommands.
 - Grok never commits. Claude reviews the diff, then Astra reviews, then Claude commits.
-- Keep in Claude (no delegation): architecture and API-shape decisions, secrets handling,
-  final review and quality gate.
+- Keep in the orchestrator (no delegation): architecture and API-shape decisions, secrets
+  handling, final review and quality gate.
 
-## Astra review
+Contributors without Grok: any coder agent works (Codex, Claude Code subagents, Cursor, etc.).
+Keep the same split: the agent that plans and reviews is not the one that writes the code.
 
-Astra is OpenAI's `gpt-6-astra`, the default model in `~/.codex/config.toml` for Codex CLI
+## Reviewer agent: Astra (reference)
+
+Erik's reviewer agent. Astra is OpenAI's `gpt-6-astra`, the default model in `~/.codex/config.toml` for Codex CLI
 (`codex-cli` 0.154+). The codex plugin (`codex@openai-codex`) wraps it for this session.
 
 - Standard review of the branch: `/codex:review --wait --base main` (or `--scope working-tree`
@@ -91,8 +102,13 @@ Astra is OpenAI's `gpt-6-astra`, the default model in `~/.codex/config.toml` for
   Note: `codex review` rejects a custom prompt when `--base` is given; use
   `/codex:adversarial-review` (or `codex exec` with a prompt) for focused instructions.
   A full pass on this repo takes roughly five minutes at xhigh reasoning; run it in the background.
-- Review output is returned verbatim. Fix findings via Grok, then re-run. A PR is not ready until
-  the last Astra pass has no CRITICAL or HIGH findings, or the human operator explicitly waives them.
+- Review output is returned verbatim. Fix findings via the coder agent, then re-run. A PR is not
+  ready until the last review pass has no CRITICAL or HIGH findings, or the human operator
+  explicitly waives them.
+
+Contributors without Astra: use any independent reviewer (Claude Code `/code-review`, Codex with
+another model, Gemini, a second Claude session). The requirement is a fresh set of eyes that did
+not write the code, run locally, before the PR opens.
 
 ## Repo layout
 

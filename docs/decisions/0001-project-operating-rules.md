@@ -13,19 +13,21 @@ hackday clock. Rules must be explicit so any fresh session behaves the same way.
    unit of work; branch names come from the issue.
 2. Everything is a pull request into `main`. Human operators (Erik, Jaiven) approve and merge.
    Anyone may approve their own or another's PR. No gating: no required checks or reviewers.
-3. Every change is reviewed by Astra (`gpt-6-astra` via the local Codex CLI / codex plugin) before
-   the PR is opened. Reviews run locally in the session, not through GitHub bot round trips.
-4. All code is written by Grok via the grok plugin skills / MCP tools. Claude Code orchestrates,
-   plans, reviews, and manages Linear, docs, and PRs.
-5. Crusoe is used for inference in a judge-visible way. This is the qualification requirement
+3. Every change gets an independent local AI review before the PR is opened, run in the session,
+   not through GitHub bot round trips. The PR body carries the summary and names the tool.
+4. Coding is delegated to a coder agent distinct from the orchestrator that plans and reviews.
+5. Each contributor chooses their own local agent team. Erik's reference setup: Claude Code
+   orchestrates, Grok (grok plugin) codes, Astra (`gpt-6-astra` via Codex CLI) reviews. Not all
+   contributors have Astra or Grok; the shape is mandatory, the vendors are not.
+6. Crusoe is used for inference in a judge-visible way. This is the qualification requirement
    for the overall prize pool.
-6. Secrets stay in `.env`; `.env.example` documents every credential.
-7. The tech stack is chosen in ADR-0002 after the idea is fixed. Until then the repo stays
+7. Secrets stay in `.env`; `.env.example` documents every credential.
+8. The tech stack is chosen in ADR-0002 after the idea is fixed. Until then the repo stays
    stack-agnostic.
 
 ## Consequences
 
 - Slightly more ceremony per change (issue, branch, Astra pass, PR) in exchange for auditability
   and the ability to hand any task to any session cold.
-- No CI gate means a human merging is the only safety net after Astra. Humans read the Astra
+- No CI gate means a human merging is the only safety net after Astra. Humans read the reviewer
   summary in the PR body before merging.

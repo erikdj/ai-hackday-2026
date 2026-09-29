@@ -36,7 +36,8 @@ Product setup instructions are added here once the stack is chosen.
 ## How work happens
 
 1. Every task is a Linear issue in the AI Hackday 2026 project.
-2. Claude Code orchestrates. Grok writes the code. Astra (Codex CLI) reviews locally.
+2. An orchestrator agent plans, a coder agent writes, a reviewer agent reviews locally before the PR.
+   Each contributor picks their own tools (Erik: Claude Code, Grok, Astra).
 3. Everything ships as a pull request. A human approves and merges. No gating.
 
 Details in [CLAUDE.md](CLAUDE.md).
