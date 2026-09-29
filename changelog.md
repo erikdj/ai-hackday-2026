@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- Model pins v4 (JV-116, overseer): Scribe back to GLM-5.3 at low reasoning on live evidence (Flash produced 2077 tokens and no brief on the real tool-bearing prompt); Flash is the STRONG fallback. Demo script, submission diagram and ledger updated.
 - Rename sweep (JV-111): every doc and docstring says **Safe Scribe**; `handoff-build-brief.md` renamed to `safe-scribe-build-brief.md`; the superseded first-idea brief removed. `hallway/` directory, env names, and `handoff_N` fixture filenames unchanged.
 - Second Band account for the Closer demoted to stretch; approved-room membership is the boundary. Model pins corrected to the overseer's latency-probed trio.
 - Product is **Safe Scribe by TrustEdge AI** (PHI-safe clinical handoff scribe): `docs/hackday/safe-scribe-build-brief.md` replaces the first-idea brief; demo script rewritten to the seven Safe Scribe beats; ADR-0002 context amended; ledger: Merge.dev cut, Band boundary room core, Neo4j lineage edges.
