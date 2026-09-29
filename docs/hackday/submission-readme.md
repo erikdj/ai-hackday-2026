@@ -85,7 +85,7 @@ integration.
 ```bash
 doppler setup                                  # project ai-hackday-2026, config dev
 doppler run -- python3 scripts/check_crusoe_tools.py --max 20
-doppler run -- make demo                       # fixtures/handoff_2: both vetoes, then approve
+doppler run -- make demo                       # handoff_2: both vetoes, then approve (Makefile lands with PR #8)
 ```
 
 Fixtures: `hallway/fixtures/handoff_{1,2,3}.{txt,wav}`. `handoff_2` is the demo, with a
