@@ -19,6 +19,7 @@ _BOUNDARY = frozenset(
 _STOP_CHARS = set(",.;:!?\"'`“”‘’")
 _ATTEMPTS = 3
 _TIMEOUT_S = 10
+_NOT_FOUND = object()
 
 
 def _normalize(text: str) -> str:
@@ -43,27 +44,23 @@ def _fallback_domain(text: str) -> str | None:
         return None
     words: list[str] = []
     for token in reversed(text[: match.start()].split()):
-        if any(ch in token for ch in _STOP_CHARS) or token.lower() in _BOUNDARY:
-            break
-        if not re.fullmatch(r"[A-Za-z0-9]+", token):
+        stopped = any(ch in token for ch in _STOP_CHARS) or token.lower() in _BOUNDARY
+        if stopped or not re.fullmatch(r"[A-Za-z0-9]+", token):
             break
         words.append(token.lower())
         if len(words) == 4:
             break
     if not words:
         return None
-    words.reverse()
-    return "".join(words) + "." + match.group(1).lower()
+    return "".join(reversed(words)) + "." + match.group(1).lower()
 
 
 def spoken_domain(text: str, name: str | None = None) -> str | None:
     """Pull a spoken domain ('example dot org') out of free text."""
     if not text:
         return None
-    if name:
-        named = _name_domain(_normalize(text), name)
-        if named:
-            return named
+    if name and _normalize(name):
+        return _name_domain(_normalize(text), name)
     return _fallback_domain(text)
 
 
@@ -74,27 +71,30 @@ def _shift_month(today: date, delta: int) -> str:
 
 
 def _claim(name: str, domain: str, rank: int | None, visits: int | None, month: str | None) -> str:
-    rank_bit = f"global rank {rank:,}" if rank is not None else "global rank unavailable"
-    if visits is not None:
-        when = f" ({month})" if month else ""
-        visit_bit = f"about {visits:,} visits/month{when}"
-    else:
-        visit_bit = "visit count unavailable"
+    rank_bit = f"global rank {rank:,}" if rank is not None else "not in Similarweb's global ranking"
+    when = f" ({month})" if month else ""
+    visit_bit = f"about {visits:,} visits/month{when}" if visits is not None else "visit count unavailable"
     return f"{name} ({domain}) is an active domain on Similarweb: {rank_bit}, {visit_bit}."
 
 
-def _fact(name: str, domain: str, rank: int | None, visits: int | None, month: str | None) -> dict:
+def _fact(name: str, domain: str, rank: int | None, visits: int | None, month: str | None, *, found: bool = True) -> dict:
+    claim = _claim(name, domain, rank, visits, month) if found else (
+        f"{name} ({domain}) is not listed on Similarweb (no traffic data); "
+        "treat this referral organization as unverified."
+    )
     return {
         "kind": "organization",
         "name": name,
         "domain": domain,
-        "active": True,
+        "active": found,
+        "status": "active" if found else "not_found",
         "rank": rank,
         "monthly_visits": visits,
         "month": month,
+        "low_traffic": (visits is not None and visits < 5000) if found else None,
         "source": "similarweb",
         "url": SIMILARWEB_PAGE.format(domain=domain),
-        "claim": _claim(name, domain, rank, visits, month),
+        "claim": claim,
     }
 
 
@@ -111,22 +111,21 @@ def _get(fetch, url: str) -> dict | None:
         try:
             payload = fetch(url)
         except error.HTTPError as exc:
-            if 500 <= exc.code <= 599 and attempt + 1 < _ATTEMPTS:
-                continue
-            log.warning("similarweb request failed status=%s", exc.code)
-            return None
+            if exc.code == 404:
+                return _NOT_FOUND
+            retry, status = 500 <= exc.code <= 599, exc.code
         except (error.URLError, TimeoutError):
-            if attempt + 1 < _ATTEMPTS:
-                continue
-            log.warning("similarweb request failed status=network")
-            return None
+            retry, status = True, "network"
         except (OSError, ValueError, json.JSONDecodeError):
-            log.warning("similarweb request failed status=error")
-            return None
-        if not isinstance(payload, dict):
-            log.warning("similarweb request failed status=bad-payload")
-            return None
-        return payload
+            retry, status = False, "error"
+        else:
+            if isinstance(payload, dict):
+                return payload
+            retry, status = False, "bad-payload"
+        if retry and attempt + 1 < _ATTEMPTS:
+            continue
+        log.warning("similarweb request failed status=%s", status)
+        return None
     return None
 
 
@@ -135,16 +134,17 @@ def _rank(payload: dict) -> int | None:
     if not isinstance(block, dict):
         return None
     try:
-        return int(block["rank"])
+        rank = int(block["rank"])
     except (KeyError, TypeError, ValueError):
         return None
+    return rank if rank > 0 else None
 
 
 def _visits(payload: dict) -> tuple[int | None, str | None]:
     rows = payload.get("visits")
-    if not isinstance(rows, list) or not rows or not isinstance(rows[-1], dict):
+    last = rows[-1] if isinstance(rows, list) and rows and isinstance(rows[-1], dict) else None
+    if last is None:
         return None, None
-    last = rows[-1]
     raw_date = last.get("date")
     month = raw_date[:7] if isinstance(raw_date, str) and len(raw_date) >= 7 else None
     try:
@@ -178,10 +178,10 @@ def organization_fact(name: str, domain: str, *, fetch=None) -> dict | None:
     rank_url = f"{API_BASE}/similar-rank/{domain_q}/rank?api_key={parse.quote(key, safe='')}"
     visits_url = f"{API_BASE}/website/{domain_q}/total-traffic-and-engagement/visits?{query}"
     rank_payload = _get(fetch, rank_url)
-    if rank_payload is None:
-        return None
+    if rank_payload is _NOT_FOUND:
+        return _fact(name, domain, None, None, None, found=False)
     visits_payload = _get(fetch, visits_url)
-    if visits_payload is None:
+    if not isinstance(rank_payload, dict) or not isinstance(visits_payload, dict):
         return None
     rank = _rank(rank_payload)
     visits, month = _visits(visits_payload)

@@ -5,7 +5,7 @@ import unittest
 import urllib.error
 from unittest.mock import patch
 
-from hallway.research.similarweb import organization_fact, spoken_domain
+from hallway.research.similarweb import fact_from_transcript, organization_fact, spoken_domain
 
 PHRASE = "she found a place called Sunrise Home Health, sunrise home health dot com."
 
@@ -39,6 +39,15 @@ class SpokenDomainTest(unittest.TestCase):
 
     def test_text_without_domain_is_none(self):
         self.assertIsNone(spoken_domain("nothing spoken here about a site"))
+
+    def test_named_org_ignores_unrelated_spoken_domain(self):
+        text = (
+            "Visit example dot org for general information. "
+            "Referral to Sunrise Home Health."
+        )
+        self.assertIsNone(spoken_domain(text, "Sunrise Home Health"))
+        with patch.dict(os.environ, {"MOCK_SIMILARWEB": "1"}):
+            self.assertIsNone(fact_from_transcript(text, "Sunrise Home Health"))
 
 
 class OrganizationFactTest(unittest.TestCase):
@@ -94,6 +103,36 @@ class OrganizationFactTest(unittest.TestCase):
         self.assertIsNotNone(fact)
         self.assertEqual(fact["rank"], 10)
         self.assertGreaterEqual(calls["n"], 3)
+
+    def test_rank_zero_with_visits_is_unranked(self):
+        def fetch(url):
+            if "similar-rank" in url:
+                return {"similar_rank": {"rank": 0}}
+            return {"visits": [{"date": "2026-08-01", "visits": 890}]}
+
+        with _live_env():
+            fact = organization_fact("Tiny Clinic", "tiny.example", fetch=fetch)
+        self.assertIsNone(fact["rank"])
+        self.assertEqual(fact["monthly_visits"], 890)
+        self.assertTrue(fact["low_traffic"])
+        self.assertEqual(fact["status"], "active")
+        self.assertIn("not in Similarweb's global ranking", fact["claim"])
+        self.assertIn("890", fact["claim"])
+
+    def test_rank_404_is_not_found(self):
+        def fetch(url):
+            if "similar-rank" in url:
+                raise urllib.error.HTTPError(url, 404, "missing", None, None)
+            raise AssertionError(url)
+
+        with _live_env():
+            fact = organization_fact("Ghost Clinic", "missing.example", fetch=fetch)
+        self.assertFalse(fact["active"])
+        self.assertEqual(fact["status"], "not_found")
+        self.assertIsNone(fact["rank"])
+        self.assertIsNone(fact["monthly_visits"])
+        self.assertIsNone(fact["low_traffic"])
+        self.assertIn("not listed on Similarweb", fact["claim"])
 
     def test_empty_payloads_fail_closed(self):
         with _live_env():
