@@ -31,6 +31,8 @@ def verified_graph_receipt(case_records, boundary_records, case_id, boundary_id)
     receipt=receipts[-1]
     if not isinstance(receipt.get('who_saw_identifiers'),list) or not all(isinstance(v,str) for v in receipt['who_saw_identifiers']):
         raise ValueError('Graph receipt lacks an actual lineage query result')
+    if receipt.get('lineage_verification')!='verified_field_access':
+        raise RuntimeError('Graph write completed, but identifier-field access lineage is unverified; full phase 2 remains incomplete')
     return receipt
 
 

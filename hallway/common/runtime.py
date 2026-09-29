@@ -42,8 +42,13 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
         records = await room_records(tools, ids)
         if role in ('grapher','closer'):
             return approved_payload(records,tools.room_id)
-        if role == 'researcher':
-            raise ValueError('Research-room integration not implemented; no case transcript access tool')
+        if role in ('scribe','researcher') and os.getenv('ENABLE_DRUG_RESEARCH')=='1':
+            from hallway.common.research_room import decode_research,read_research
+            research_records=decode_research(await raw_messages(tools),ids)
+            if role=='researcher' or any(r['kind']=='RESEARCH_REQUEST' for r in research_records):
+                return {'room_kind':'research','request':await read_research(tools,ids)}
+        if role=='researcher':
+            raise ValueError('Drug research is disabled; no case transcript access tool')
         if role == 'desk':
             return {'records':records}
         state=case_state(records)
@@ -130,6 +135,25 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
             async with lock(tools):
                 return await request_owner(tools,ids,follow_up_id)
         result.append(band_request_owner)
+    if role in ('scribe','researcher') and os.getenv('ENABLE_DRUG_RESEARCH')=='1':
+        if role=='scribe':
+            @tool
+            async def band_relay_research(config: RunnableConfig) -> dict:
+                """Relay a verified drug-only research result to its authenticated linked case; no model routing parameters."""
+                from hallway.common.research_room import relay_research
+                tools=bound(config)
+                async with lock(tools):
+                    return await relay_research(tools,ids)
+            result.append(band_relay_research)
+        else:
+            @tool
+            async def band_research_drugs(config: RunnableConfig) -> dict:
+                """Research only drug names from this room's authenticated Scribe request; report live sources or explicit failure."""
+                from hallway.common.research_room import research_drugs
+                tools=bound(config)
+                async with lock(tools):
+                    return await research_drugs(tools,ids)
+            result.append(band_research_drugs)
     if role=='grapher':
         @tool
         async def band_write_approved_graph(config: RunnableConfig) -> dict:
@@ -178,7 +202,8 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                          'revision':payload['revision'],'digest':payload['digest'],'case_id':payload['case_id'],
                          'approved_room_id':tools.room_id,'merged':bool(result.get('merged')),
                          'encounter':result.get('encounter'),'who_saw_identifiers':lineage,
-                         'provenance_kind':payload['provenance_kind'],'lineage_query_scope':'global_graph_all_encounters'}
+                         'provenance_kind':payload['provenance_kind'],'lineage_query_scope':'global_graph_all_encounters',
+                         'lineage_verification':'unverified_processing_only'}
                 await post(tools,'GRAPH_WRITTEN',receipt,['critic'],ids)
                 return receipt
         result.append(band_write_approved_graph)

@@ -281,6 +281,9 @@ async def submit_brief(tools: AgentTools, ids: dict[str,str], brief: Brief) -> d
              'removed_unsupported_follow_ups':removed}
     await action_event(tools,f'Publishing HANDOFF brief revision {revision}; case-room-only phase 1')
     await post(tools,'BRIEF',payload,['critic'],ids)
+    if os.getenv('ENABLE_DRUG_RESEARCH')=='1':
+        from hallway.common.research_room import request_research
+        payload['research']=await request_research(tools,ids,brief,state['recording'])
     return payload
 
 
@@ -326,9 +329,20 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
         await action_event(tools,'Veto: evidence, ownership or identifier check failed; no outbound delivery')
         await post(tools,'VERDICT',verdict,recipients,ids)
         return verdict
+    facts=[]
+    if os.getenv('ENABLE_DRUG_RESEARCH')=='1':
+        from hallway.common.research_room import research_for_review
+        research=research_for_review(messages,ids,brief,state['recording'])
+        if research['status']=='pending':
+            return {'status':'WAITING_FOR_RESEARCH','revision':current['revision']}
+        facts=research['facts']
+        # Source/identifier checks cover the exact enrichment entering approval.
+        errors=validate_brief(brief,state['recording'],facts)
+        if errors:
+            raise ValueError('Research evidence failed approval checks; no boundary delivery')
     unresolved=[item.id for item in brief.follow_ups if item.status=='unresolved']
     payload={'revision':current['revision'],'digest':current['digest'],'brief':current['brief'],
-             'enrichment':[],'unresolved_follow_ups':unresolved,'scope':'case_only_phase1'}
+             'enrichment':facts,'unresolved_follow_ups':unresolved,'scope':'case_only_phase1'}
     # Recheck the exact envelope, not merely its clinical sub-object. Raw transcript,
     # direct identifier list, human reply text and local salt never enter this object.
     from hallway.common.brief import identifier_violations

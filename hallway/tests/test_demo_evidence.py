@@ -9,7 +9,7 @@ class DemoEvidenceTests(unittest.TestCase):
         brief=Brief.model_validate(BASIC).model_dump();hashed=digest(brief)
         checkpoint={'kind':'BOUNDARY_SENT','case_id':'case','approved_room_id':'boundary','revision':1,'digest':hashed}
         approval={'kind':'APPROVAL','scope':'approved_room','case_id':'case','approved_room_id':'boundary','revision':1,'digest':hashed,'brief':brief,'manifest':[]}
-        receipt={'kind':'GRAPH_WRITTEN','status':'GRAPH_WRITTEN','case_id':'case','approved_room_id':'boundary','revision':1,'digest':hashed,'who_saw_identifiers':[]}
+        receipt={'kind':'GRAPH_WRITTEN','status':'GRAPH_WRITTEN','case_id':'case','approved_room_id':'boundary','revision':1,'digest':hashed,'who_saw_identifiers':[],'lineage_verification':'verified_field_access'}
         return [checkpoint],[approval,receipt]
     def test_accepts_real_matching_receipt_with_actual_empty_query(self):
         case,boundary=self.evidence()
@@ -23,3 +23,8 @@ class DemoEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):verified_graph_receipt(case,boundary,'case','boundary')
         case,boundary=self.evidence();del boundary[-1]['who_saw_identifiers']
         with self.assertRaises(ValueError):verified_graph_receipt(case,boundary,'case','boundary')
+
+    def test_processing_only_graph_receipt_is_explicitly_incomplete(self):
+        case,boundary=self.evidence();boundary[-1]['lineage_verification']='unverified_processing_only'
+        with self.assertRaisesRegex(RuntimeError,'lineage is unverified'):
+            verified_graph_receipt(case,boundary,'case','boundary')

@@ -169,3 +169,7 @@ Brave results count as live evidence only when their own metadata says `mock: fa
 `source: brave`; missing keys and mock results produce no evidence. Eleven focused offline tests
 cover the boundary and retries. Runtime tool wiring and a live end-to-end research run remain
 pending; this helper alone is not sponsor-demo proof.
+
+The current processing-only manifest does **not** verify identifier-field access. Graph writes and their actual query results remain usable, but the live observer explicitly reports lineage unverified and keeps full phase 2 incomplete. No empty/global query is promoted to proof of access.
+
+Set `ENABLE_DRUG_RESEARCH=1` on Scribe, Critic and Researcher to activate the separate drug-only room. Runtime tool wiring now starts recruitment after Scribe publishes, dispatches research-room messages to the relay, and prevents Critic approval until an authenticated result or explicit unavailability arrives. Mock search facts are never propagated as evidence. Live research verification remains pending.
