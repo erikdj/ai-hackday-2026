@@ -340,6 +340,28 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
         await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
         self.assertEqual((await review(band,IDS,True,[]))['status'],'APPROVED')
+    async def test_natural_self_assignment_variants_preserve_provenance_gate(self):
+        for phrase in ("I'll own that",'I will own this',"I’ll own this!",'I will own that.'):
+            for mode,expected in [('valid','APPROVED'),('forged','VETO'),('earlier_request','VETO')]:
+                with self.subTest(phrase=phrase,mode=mode):
+                    band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+                    if mode=='earlier_request':
+                        extra=record('OWNER_REQUEST',{'follow_up_id':'other-task'},'scribe');extra['id']='newer-request'
+                        band.messages.append(extra)
+                    content='@[['+IDS['scribe']+']] '+phrase+' @[['+IDS['critic']+']]'
+                    reply=band.human(content,name='Erik Jones',sender=IDS['scribe'] if mode=='forged' else 'human-id',sender_type='Agent' if mode=='forged' else 'User')
+                    brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+                    await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+                    result=await review(band,IDS,True,[])
+                    self.assertEqual(result.get('status',result.get('verdict')),expected)
+    async def test_ambiguous_agreement_is_not_self_assignment(self):
+        for phrase in ('yes','I might own that','the daughter owns that'):
+            band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
+            reply=band.human(phrase,name='Erik Jones')
+            brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+            await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+            self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+
     async def test_reply_not_visible_to_critic_is_not_provenance(self):
         band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
         reply=band.human("I'll own it",name='Erik Jones')

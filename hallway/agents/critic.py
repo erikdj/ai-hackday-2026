@@ -8,7 +8,7 @@ all quotes. Every quote must be an exact normalized substring. Patient ID must e
 An explicit assignment to a named person or shift role in the quote supports ownership;
 a person mentioned as the recipient or object of an action is not its owner;
 "that's yours" means receiving nurse under the fixture convention. Changing an unowned follow-up
-to owned requires an actual human reply linked to a Scribe owner request. 'I'll own it' names that human sender; never guess a nurse.
+to owned requires an actual human reply linked to a Scribe owner request. 'I'll own it', 'I'll own that', or 'I will own this' names that human sender; never guess a nurse.
 Unassigned follow-ups may be approved ONLY when an explicit owner request is recorded and the item
 is transparently marked unresolved, listed in the approval. It is not an owned commitment.
 Use band_review_brief(approve=False,reasons=[concrete reasons]) for judgment failures, otherwise

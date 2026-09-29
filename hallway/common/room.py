@@ -427,7 +427,7 @@ def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], hum
             content=tokens[0]
         content=normalize(content).replace('’', "'").rstrip('.!')
         owner=None
-        if content in ("i'll own it",'i will own it'):
+        if content in {f"{subject} own {target}" for subject in ("i'll", "i will") for target in ("it", "that", "this")}:
             preceding=[r for r in records if r['kind']=='OWNER_REQUEST' and positions.get(r['message_id'],10**9)<positions[message['id']]]
             if preceding and preceding[-1]['message_id']==item.request_message_id:
                 owner=message.get('sender_name')
