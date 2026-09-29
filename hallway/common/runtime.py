@@ -212,12 +212,19 @@ def make_tools(role: str, holder: dict, ids: dict[str,str]) -> list:
                         if attempt==2:
                             raise ValueError('Graph write failed; no success receipt') from None
                         await asyncio.sleep(0.2*(attempt+1))
+                from hallway.common.brief import IDENTIFIER_FIELDS
+                expected_roles={entry['agent'] for entry in manifest if entry.get('field') in IDENTIFIER_FIELDS}
+                query_matches=(isinstance(lineage,list) and all(isinstance(role,str) for role in lineage)
+                               and bool(expected_roles) and expected_roles.issubset(set(lineage)))
+                verification=payload.get('lineage_verification','unverified_processing_only')
+                if verification=='verified_field_access' and not query_matches:
+                    verification='unverified_graph_query_mismatch'
                 receipt={'status':'MOCK_GRAPH_WRITTEN' if mocked else 'GRAPH_WRITTEN',
                          'revision':payload['revision'],'digest':payload['digest'],'case_id':payload['case_id'],
                          'approved_room_id':tools.room_id,'merged':bool(result.get('merged')),
                          'encounter':result.get('encounter'),'who_saw_identifiers':lineage,
                          'provenance_kind':payload['provenance_kind'],'lineage_query_scope':'global_graph_all_encounters',
-                         'lineage_verification':payload.get('lineage_verification','unverified_processing_only')}
+                         'lineage_verification':verification}
                 await post(tools,'GRAPH_WRITTEN',receipt,['critic'],ids)
                 return receipt
         result.append(band_write_approved_graph)
