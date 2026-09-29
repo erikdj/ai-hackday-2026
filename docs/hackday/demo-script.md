@@ -34,7 +34,7 @@ patient identifier trying to leave the room, and Neo4j records which agent saw w
 | # | Time | Erik says / does | On screen | Sponsor | Fallback if not live |
 | --- | --- | --- | --- | --- | --- |
 | 0 | 0:00 | "Clinics want AI scribes. Compliance says no twice: data leaves for a hyperscaler, and nobody can prove who saw what. Safe Scribe is the scribe a compliance officer can say yes to. The patient you'll hear is synthetic." | Title slide or README top | | |
-| 1 | 0:15 | "The handoff was recorded on this laptop. It is transcribed here, by faster-whisper. Zero bytes of audio leave the machine." Runs `python -m hallway.ingest.transcribe hallway/fixtures/handoff_2.wav --inbox inbox --print`. | Log line `0 bytes of audio left this machine`, transcript text | faster-whisper (local, open source) | Play 10 s of the `.wav`, then `cat hallway/fixtures/handoff_2.txt`. Say "transcription runs locally; for time we use the pre-transcribed text." |
+| 1 | 0:15 | Plays the first 20 seconds of `hallway/fixtures/handoff_2.wav`: the nurse says the patient's name and date of birth and the warfarin line. Stops it. "That name and birthdate you just heard will not appear in anything that leaves the room. The recording is transcribed on this laptop by faster-whisper; zero bytes of audio leave the machine." Runs `python -m hallway.ingest.transcribe hallway/fixtures/handoff_2.wav --inbox inbox --print`. | Audio playing, then the log line `0 bytes of audio left this machine` and the transcript text | faster-whisper (local, open source) | If transcription is slow on stage: play the clip, then `cat hallway/fixtures/handoff_2.txt` and say "for time we use the text transcribed earlier on this laptop." |
 | 2 | 0:35 | "Text only goes to Desk. In Band I ask Desk to open a case." In the lobby: mention Desk, `/ingest fixture:handoff_2`. | Room `Safe Scribe case <id>` appears with Desk, Scribe, Critic and Erik. TRANSCRIPT posted. | Band | If the inbox watcher (PR #33) is wired by freeze, drop the file instead and let Desk open the case from the inbox. |
 | 3 | 0:50 | "Scribe, on GLM-5.3 served by Crusoe, extracts the brief. Every item carries a verbatim quote from the transcript." | BRIEF rev 1 in the room: meds (warfarin, ciprofloxacin), allergies, pending results, follow-ups. Desk log shows provider and model id. | Crusoe, Band | None needed; observed live in cases `4be3e276` and `a9806e53`. |
 | 4 | 1:05 | "Now the Critic, a different model family, also on Crusoe. The veto: a follow-up nobody owns, 'someone should call the daughter'. It does not guess an owner. It asks the room." Erik types `@Scribe @Critic I'll own it`. | VETO rev 1 (unowned follow-up `fu-daughter-call`), OWNER_REQUEST, Erik's reply, BRIEF rev 2 with owner `Erik Jones` and his message id as provenance | Crusoe (2nd family), Band human-in-room | None needed; observed live in `a9806e53`. |
@@ -77,14 +77,44 @@ Speak to the architecture diagram in `docs/hackday/submission-readme.md`, then h
    (`docs/hackday/integration-ledger.md`) says verified, mocked, attempted or deferred per tool,
    and the README table is generated from it.
 
-## Sponsor status to state on tape (as of 13:05 PDT, update at freeze)
+## If a judge asks
+
+**"Why is this needed? A doctor recorded a conversation."** Nurses and doctors hand patients off
+by talking, all day. Follow-ups without an owner don't happen, details get misremembered, and
+writing it down takes time nobody has. Every hospital wants an AI scribe. Compliance blocks it for
+two reasons: the audio and the patient's identity would be shipped to a big cloud AI company, and
+afterwards nobody can prove which systems saw the name, the birthdate, the record number. "Trust
+us" is not an answer an auditor accepts. Safe Scribe is the scribe a compliance officer can say yes
+to: the audio stays on the laptop, a small team of agents works in a private room with a human
+nurse in it, a second agent on a different model can block the first, a human owns every
+follow-up, only a pseudonymous summary leaves the room, and the system writes down who saw what.
+
+**"Band and Crusoe still see patient data. Why is that OK?"** It is not zero exposure and we do not
+say it is. Three named agents in one room see the transcript. The argument is: *chosen*, the
+hospital picks the inference provider and the coordination layer the way it picks a cloud for its
+records system, under its own agreement and deployment, instead of the transcript going to a
+consumer AI API by default (the compose file runs the agents on any host the hospital controls);
+*minimized*, audio never moves, exactly three agents see identifiers, everything downstream gets a
+pseudonymous brief and never the transcript, and room membership is the boundary, enforced by
+Band not by promise; *provable*, the graph records which agent touched which field, which is the
+question the auditor actually asks. Today's alternative offers none of those three.
+
+**"Is this HIPAA compliant / de-identified?"** No claim. It is a boundary control with an
+identifier gate and an access ledger. Certification is a program, not a hackday.
+
+**"Where is the research agent?"** Built and tested (drug-name-only room, Brave fact with URL,
+Similarweb legitimacy fact for a spoken referral organization), gated off for this recording
+because a failed recruitment had no retry path until the last hour. Live Brave and Similarweb
+facts are in the ledger; the doctor-patient fixture `visit_1.wav` is the scenario it serves.
+
+## Sponsor status to state on tape (as of 14:00 PDT freeze)
 
 | Tool | Say | Do not say |
 | --- | --- | --- |
 | Crusoe | Every agent's inference; two model families; pins from a live probe | anything about fine-tuning or hosting |
-| Band | Live case room, roster gate, vetoes, human owner in the room, approved room built and gated | that the approved room ran live unless the 13:30 receipt exists |
-| Neo4j | Aura instance, real writes and the lineage query verified | that lineage came from a live room unless phase 2 ran |
-| DuploCloud | MCP server, provider and scope registered in the studio; tool call answers | that DuploCloud runs the agents |
+| Band | Live case room, veto, human owner in the room, APPROVE, and the approved room with Grapher only (cases a9806e53 and 84cfeb33) | that the identifier veto fired live (it did not need to) |
+| Neo4j | Aura instance, real writes and the lineage query verified from the store; Grapher wrote its receipt from a live approved room | that the Aura write came from a live room unless the code-freeze run's receipt says GRAPH_WRITTEN (not MOCK) |
+| DuploCloud | MCP server, provider, scope and ticket registered in the studio; the devkit agent completed the handshake and picked the lineage tool; the call runs after Erik approves it in the studio | that DuploCloud runs the agents |
 | Brave | Live sourced fact per drug | that the Researcher joined a live case unless it did |
 | Similarweb | Live organization fact for a spoken referral domain | that it verifies a provider's credentials |
 | faster-whisper | Local transcription on the laptop | that it is a sponsor |

@@ -61,15 +61,16 @@ laptop                              Band (coordination)                 Crusoe (
 
 | Tool | Job in Safe Scribe | Delete test | Status |
 | --- | --- | --- | --- |
-| **Crusoe** | Every agent's inference. Three models pinned from a live tool-calling probe of the whole catalog. | No agent has a brain | verified live |
-| **Band** | Case room, runtime roster, veto gate, approved-room boundary, live execution events | No room, no gate, no veto | [ ] live room verified |
-| **Neo4j** | Pseudonymous patient memory across encounters; `(Agent)-[:ACCESSED]->(Field)` lineage | No memory, no proof of who saw what | [ ] Aura writes verified |
-| Brave Search | Researcher, recruited only when a drug is named, one sourced fact with URL | Critic cannot verify enrichment | [ ] optional |
-| Nebius | Embeddings that *suggest* a prior encounter for a human to confirm | Duplicate patients | [ ] optional |
-| OpenRouter | Dashboard "ask the graph" over the pseudonymous graph only | No natural-language graph Q&A | [ ] optional |
-| Vultr | Hosts Scribe, Critic, Grapher, Closer, dashboard. Desk and audio stay on the laptop. | Demo rides on venue wifi | [ ] optional |
+| **Crusoe** | Every agent's inference. Two model families pinned from a live tool-calling probe of the whole catalog and two live runs. | No agent has a brain | verified live |
+| **Band** | Case room, runtime roster, veto gate, human owner in the room, approved-room boundary | No room, no gate, no veto | verified live (VETO, owner reply, APPROVE, approved room) |
+| **Neo4j** | Pseudonymous patient memory across encounters; `(Agent)-[:ACCESSED]->(Field)` lineage | No memory, no proof of who saw what | verified (Aura writes + lineage query) |
+| **DuploCloud** | The lineage question exposed as an MCP tool, registered in the studio; a compliance agent asks it | Lineage answer not reachable by other agents | verified (wired; tool call after human approval in the studio) |
+| Brave Search | Researcher fact for a named drug, one sourced URL | Critic cannot verify enrichment | verified live (fact); room recruitment built, gated off for the demo |
+| Similarweb | Legitimacy fact for a referral organization spoken in the visit | Spoken referral cannot be checked | verified live |
+| Nebius | Embeddings that *suggest* a prior encounter for a human to confirm | Duplicate patients | attempted, not integrated |
+| Vultr | Hosts the cloud agents; Desk and audio stay on the laptop | Demo rides on a laptop | attempted, compose ready, no host |
 
-xAI text-to-speech was used to synthesize the demo recordings from written scripts (synthetic
+faster-whisper (open source) transcribes on the laptop; it is not a sponsor. xAI text-to-speech was used to synthesize the demo recordings from written scripts (synthetic
 patients). It is development tooling, not part of the product, and is not claimed as an
 integration.
 

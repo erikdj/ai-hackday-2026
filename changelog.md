@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- Feature-freeze docs sweep (14:00 PDT, overseer): ledger, README tool table, DuploCloud section with WSL2 notes, demo script (audio clip in beat 1, judge Q&A with the plain-language case and the Band/Crusoe exposure answer, sponsor say/do-not-say) all match what was observed live today.
 - Demo script beat 5 and README step 4 corrected after live case a9806e53 (JV-102, overseer): the identifier gate passes because Scribe works from a pseudonymous id; the veto is shown from the identifier-gate tests, never staged.
 - Demo script rewritten for the recorded submission (JV-102, overseer): eight timed beats with a fallback line per beat, three-minute technical dive outline, pre-record checklist, sponsor say/do-not-say table, rehearsal log. Matches what was observed live by 13:05 PDT.
 - Model pins v4 (JV-116, overseer): Scribe back to GLM-5.3 at low reasoning on live evidence (Flash produced 2077 tokens and no brief on the real tool-bearing prompt); Flash is the STRONG fallback. Demo script, submission diagram and ledger updated.
