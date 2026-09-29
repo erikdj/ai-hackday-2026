@@ -5,13 +5,13 @@ real call, seen in a run), **mocked** (`MOCK_*=1`, code path exists), **attempte
 reason noted), **deferred** (not started by decision). Judges check that every claimed tool does
 real work; this table is what the README tool table is generated from.
 
-Last updated: 2026-09-29 11:15 PDT (post-pivot to HANDOFF).
+Last updated: 2026-09-29 11:50 PDT.
 
 | Tool | Tier | State | Evidence | Owner | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Crusoe | 1 | deferred | no key yet; `scripts/check_crusoe_tools.py` ready (mock: 3 PASS) | Erik (JV-97) | $10k gate. Discord pins, then Crusoe console Intelligence Foundry, then the Crusoe table. `scripts/check-crusoe.sh` and `scripts/check_crusoe_tools.py` verify. |
-| Band | 1 | deferred | SDK installed on Jaiven's laptop; no agents registered | Jaiven (JV-105), Erik (JV-107) | Six remote agents at app.band.ai/agents plus Erik's second account for the Closer boundary room (core since the pivot). |
-| Neo4j | 1 | deferred | recipe in docs (JV-104) | Jaiven (JV-106) | Aura Free instance not created yet. Cut line 2. Clinical nodes plus ACCESSED lineage edges; canned query "which agents saw identifiers?" (expected: Desk, Scribe, Critic). |
+| Crusoe | 1 | **verified** | 11:44 PDT: key in Doppler; `check-crusoe.sh` OK; `check_crusoe_tools.py --max 20` 13/13 PASS tool calling; trio pinned in Doppler (GLM-5.3 / GLM-5.3-Flash / Kimi-K2.6 + Crusoe fallbacks). Table on JV-97. | Erik (JV-97, done) | Live agent run still pending Band ids. Desk log prints provider + model id for judges. |
+| Band | 1 | mocked | PR #8 spine passes 36+5 offline tests against a fake Band; one `BAND_API_KEY` in Doppler, six per-role agent ids still missing | Jaiven (JV-105), Erik (JV-107) | Six remote agents at app.band.ai/agents plus Erik's second account for the Closer boundary room (core since the pivot). |
+| Neo4j | 1 | mocked | `hallway/graph/store.py` (PR #11) in-memory with lineage query; driver backend in review; no Aura instance yet | Erik (JV-110), Jaiven (JV-106) | Aura Free instance not created yet. Cut line 2. Clinical nodes plus ACCESSED lineage edges; canned query "which agents saw identifiers?" (expected: Desk, Scribe, Critic). |
 | OpenRouter | 2 | deferred | | Jaiven (JV-108) | Dashboard ask-the-graph over the pseudonymized graph only. Never a fallback for transcript-bearing agents (they fail closed). |
 | Nebius | 2 | deferred | | Jaiven (JV-107) | Embeddings suggest possible prior encounters on pseudonymous fields; never merge. Identity is Desk's local pseudo_id. |
 | Brave | 2 | deferred | | Jaiven (JV-107) | Researcher: one drug interaction/guideline fact with URL; query is the drug name only. |
@@ -23,6 +23,8 @@ Last updated: 2026-09-29 11:15 PDT (post-pivot to HANDOFF).
 | UserTesting | cut | deferred | | | Needs provisioning. |
 
 ## Change log
+
+- 2026-09-29 11:50 PDT: Crusoe verified (13/13 tool calling). Band and Neo4j mocked with real code paths.
 
 - 2026-09-29 11:15 PDT: pivot to HANDOFF. Merge.dev cut; Band boundary room now core; Neo4j gains lineage edges.
 
