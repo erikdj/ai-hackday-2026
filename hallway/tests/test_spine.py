@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch, AsyncMock
 from hallway.common.brief import Brief,digest,extract_identifiers,identifier_violations,validate_brief
-from hallway.common.room import PREFIX,approved_payload,decode_messages,review,submit_brief,request_owner,raw_messages
+from hallway.common.room import PREFIX,approved_payload,decode_messages,review,submit_brief,request_owner,raw_messages,transcript_owner_is_explicit
 from hallway.common.runtime import make_tools, build_agent
 from hallway.common.band_cfg import credentials,identities
 from hallway.common.llm import InferenceUnavailable
@@ -111,6 +111,15 @@ class ValidationTests(unittest.TestCase):
     def test_unconfigured_author_is_ignored(self):
         core={role:IDS[role] for role in ('desk','scribe','critic')}
         self.assertEqual([],decode_messages([record('ENRICHMENT',{'facts':[]},'researcher')],core))
+    def test_action_recipient_is_never_inferred_owner(self):
+        for owner,quote in [('daughter','Call the daughter about discharge.'),('Maria','Call Maria about discharge.'),('night nurse','Send the result to the night nurse.'),('Patel','Ask Patel about the labs.')]:
+            self.assertFalse(transcript_owner_is_explicit(owner,quote),(owner,quote))
+    def test_actual_fixture_explicit_assignment_forms(self):
+        cases=[('night nurse','that one is on the night nurse'),('Maria',"that's Maria on the day shift"),('receiving nurse',"that's yours"),('Doctor Patel','Doctor Patel is following it and will call the family with the read.'),('day team',"that's on the day team"),('Doctor Patel','that order is in under Doctor Patel'),('Doctor Nguyen','Doctor Nguyen owns the follow-up on the result.'),('day charge nurse','That call is on the day charge nurse.')]
+        transcripts=' '.join((Path(__file__).parents[1]/'fixtures'/f'handoff_{i}.txt').read_text() for i in (1,2,3))
+        for owner,quote in cases:
+            self.assertIn(quote,transcripts)
+            self.assertTrue(transcript_owner_is_explicit(owner,quote),(owner,quote))
     def test_case_approval_not_downstream_authorization(self):
         with self.assertRaisesRegex(ValueError,'boundary'): approved_payload([])
 
@@ -197,6 +206,12 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
         reply=band.human("I'll own it",name='Erik Jones',sender=IDS['scribe'],sender_type='Agent')
         brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+        await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+        self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+    async def test_daughter_as_action_object_still_requires_human_provenance(self):
+        band=FakeBand();source=dict(RECORDING,transcript=RECORDING['transcript']+' Call the daughter about discharge.')
+        band.messages=[record('TRANSCRIPT',{'recording':source},'desk')]
+        brief=copy.deepcopy(BASIC);brief['follow_ups'][0].update(quote='Call the daughter about discharge.',owner='daughter')
         await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
         self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
     async def test_named_human_assignment(self):

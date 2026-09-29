@@ -21,7 +21,7 @@ the timing requirement.
 Setting `reasoning_effort=low` for GLM only restored generation within the existing 10-second
 request timeout; model pins and timeouts were unchanged. The earlier GLM/Kimi retry timeouts
 and failed 90-second demo remain historical failures. The complete live demo is still not green.
-The offline suite has **53 passing tests** (48 product + 5 smoke); those tests do not establish
+The offline suite has **58 passing tests** (53 product + 5 smoke); those tests do not establish
 live end-to-end success.
 
 ## What phase 1 is, and is not
@@ -70,6 +70,9 @@ integrations. Passing isolated live calls does not mean the complete demo works.
 ## Run
 
 Run these commands from the repository root.
+
+Optionally set `CRUSOE_DISABLE_THINKING_MODELS` to comma-separated exact model IDs verified to
+support `enable_thinking=false`; its blank default leaves model behavior unchanged.
 
 ```sh
 make install

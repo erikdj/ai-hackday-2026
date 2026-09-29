@@ -90,6 +90,33 @@ class ModelBoundaryTests(IsolatedAsyncioTestCase):
                 self.assertEqual(model.reasoning_effort,'low' if primary=='zai-org/GLM-5.3' else None)
                 self.assertEqual(model.crusoe_fallback.reasoning_effort,'low' if secondary=='zai-org/GLM-5.3' else None)
 
+    def test_disable_thinking_applies_independently_to_listed_models(self):
+        expected = {'chat_template_kwargs': {'enable_thinking': False}}
+        for listed, primary_enabled, fallback_enabled in [
+            ('primary', True, False), ('secondary', False, True),
+            (' primary , secondary ,, ', True, True),
+        ]:
+            with self.subTest(listed=listed), patch.dict(os.environ, {
+                **ENV, 'CRUSOE_DISABLE_THINKING_MODELS': listed,
+            }, clear=True):
+                model = llm('scribe')
+                self.assertEqual(model.extra_body, expected if primary_enabled else None)
+                self.assertEqual(model.crusoe_fallback.extra_body, expected if fallback_enabled else None)
+                for client in (model, model.crusoe_fallback):
+                    self.assertEqual(client.request_timeout, 10)
+                    self.assertEqual(client.max_retries, 2)
+                    self.assertEqual(client.max_tokens, 2048)
+
+    def test_disable_thinking_requires_exact_case_sensitive_model_match(self):
+        for listed in (None, '', ' , ', 'Primary,secondary-extra,other/primary'):
+            env = dict(ENV)
+            if listed is not None:
+                env['CRUSOE_DISABLE_THINKING_MODELS'] = listed
+            with self.subTest(listed=listed), patch.dict(os.environ, env, clear=True):
+                model = llm('scribe')
+                for client in (model, model.crusoe_fallback):
+                    self.assertIsNone(client.extra_body)
+
     def test_distinct_secondary_is_required(self):
         with patch.dict(os.environ, {**ENV, 'CRUSOE_MODEL_FALLBACK': 'primary'}, clear=True):
             with self.assertRaisesRegex(ValueError, 'distinct Crusoe fallback'):

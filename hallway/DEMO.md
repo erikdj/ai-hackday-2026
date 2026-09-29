@@ -17,7 +17,7 @@ run history. The full live demo is not green; the remaining steps below are rehe
 4. For an owner request, mention both Scribe and Critic and answer `/own <id> <name>` or `I'll own it`. The recorded human message is ownership provenance. Unassigned actions remain explicitly unresolved.
 5. Approval names the exact revision and lists unresolved follow-ups. No graph/research/boundary room is implemented in this phase, so the full live demo still reports incomplete.
 
-The offline test suite has 53 passing tests (48 product + 5 smoke). Run `make check` and optionally
+The offline test suite has 58 passing tests (53 product + 5 smoke). Run `make check` and optionally
 `MOCK_BAND=1 MOCK_CRUSOE=1 make demo` to check offline behavior while the live case awaits a human ownership reply.
 Call this an offline unit-test harness, never a live sponsor demo. It uses synthetic test examples,
 not model-generated output from the selected fixture. No real graph writes or boundary are shown.

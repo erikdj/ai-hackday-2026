@@ -116,6 +116,27 @@ async def recruit(tools: AgentTools, role: str, ids: dict[str,str]):
     return result
 
 
+def transcript_owner_is_explicit(owner: str, quote: str) -> bool:
+    """Conservative assignment syntax; mentioning an action's recipient is not ownership."""
+    import re
+    owner=normalize(owner or '')
+    quote=normalize(quote).replace('’', "'")
+    if not owner or owner in {'someone','somebody','we','they','unknown','unassigned','it','i'}:
+        return False
+    if any(phrase in quote for phrase in ('someone should','somebody should','we should probably')):
+        return False
+    if owner=='receiving nurse':
+        return bool(re.search(r"\bthat(?:'s| is) yours\b",quote))
+    named=re.escape(owner)
+    # Recognized fixture forms: "that's Maria", "that one is on the night
+    # nurse", "that order is in under Doctor Patel", or an explicit subject
+    # such as "Doctor Patel is following it" / "Maria will check the result".
+    assignment=rf"\bthat(?:(?: one| call| task| follow-up))?(?:'s| is) (?:on (?:the )?)?{named}(?=\b|$)"
+    order=rf"\bthat order is in under {named}(?=\b|$)"
+    subject=rf"(?:^|[.!?;,]\s*|\band\s+)(?:the )?{named}\s+(?:will\b|should\b|must\b|owns\b|is following\b)"
+    return any(re.search(pattern,quote) for pattern in (assignment,order,subject))
+
+
 def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], human_ids: set[str], reply_handles: tuple[str,...] = ()) -> list[str]:
     """Only server-authenticated human replies to an actual Scribe request count."""
     records=decode_messages(messages,ids)
@@ -124,10 +145,7 @@ def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], hum
     by_id={m['id']:m for m in messages}
     reasons=[]
     for item in brief.follow_ups:
-        owner=normalize(item.owner or '')
-        quote=normalize(item.quote).replace('’', "'")
-        generic=any(phrase in quote for phrase in ('someone should','somebody should','we should probably'))
-        transcript_owned=(not generic and owner and owner not in {'someone','somebody','we','they','unknown','unassigned','it','i'} and (owner in quote or (owner=='receiving nurse' and ("that's yours" in quote or 'that is yours' in quote))))
+        transcript_owned=transcript_owner_is_explicit(item.owner,item.quote)
         if item.status=='pending' and transcript_owned and not item.owner_message_id:
             continue
         request=requests.get(item.request_message_id)

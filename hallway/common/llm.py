@@ -80,5 +80,12 @@ def llm(role: str) -> ChatOpenAI:
         primary_options['reasoning_effort']='low'
     if fallback == 'zai-org/GLM-5.3':
         fallback_options['reasoning_effort']='low'
+    # Only explicitly opted-in catalog IDs receive this provider extension.
+    disable_thinking = {value.strip() for value in
+                        os.getenv('CRUSOE_DISABLE_THINKING_MODELS', '').split(',') if value.strip()}
+    if model in disable_thinking:
+        primary_options['extra_body'] = {'chat_template_kwargs': {'enable_thinking': False}}
+    if fallback in disable_thinking:
+        fallback_options['extra_body'] = {'chat_template_kwargs': {'enable_thinking': False}}
     return CrusoeChat(model=model, hallway_role=role,
                       crusoe_fallback=ChatOpenAI(model=fallback, **fallback_options), **primary_options)
