@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- Demo script beat 5 and README step 4 corrected after live case a9806e53 (JV-102, overseer): the identifier gate passes because Scribe works from a pseudonymous id; the veto is shown from the identifier-gate tests, never staged.
 - Demo script rewritten for the recorded submission (JV-102, overseer): eight timed beats with a fallback line per beat, three-minute technical dive outline, pre-record checklist, sponsor say/do-not-say table, rehearsal log. Matches what was observed live by 13:05 PDT.
 - Model pins v4 (JV-116, overseer): Scribe back to GLM-5.3 at low reasoning on live evidence (Flash produced 2077 tokens and no brief on the real tool-bearing prompt); Flash is the STRONG fallback. Demo script, submission diagram and ledger updated.
 - Rename sweep (JV-111): every doc and docstring says **Safe Scribe**; `handoff-build-brief.md` renamed to `safe-scribe-build-brief.md`; the superseded first-idea brief removed. `hallway/` directory, env names, and `handoff_N` fixture filenames unchanged.

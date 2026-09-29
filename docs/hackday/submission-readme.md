@@ -25,8 +25,10 @@ is the version of an AI scribe that a compliance officer can say yes to.
    that matters, **any patient identifier in the outbound brief** (name, date of birth, record
    number, phone, address).
 4. The unowned follow-up is not guessed. The charge nurse in the room types `I'll own it`, and
-   that human message becomes the provenance for the owner. The identifier leak is redacted.
-   The Critic approves an exact brief revision.
+   that human message becomes the provenance for the owner. The identifier gate scans the
+   outbound brief; Scribe works from a pseudonymous id, so in the live run it passes, and the
+   tests show it vetoing any brief that carries a name, a spoken date of birth or a record
+   number. The Critic approves an exact brief revision.
 5. Only then are the downstream agents let in, and only into a separate **approved room** that has
    never contained the transcript. **Grapher** writes the brief to **Neo4j** as a pseudonymous
    patient record plus an access-lineage graph. **Closer** drafts the discharge follow-up from the
