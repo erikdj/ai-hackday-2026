@@ -1,33 +1,61 @@
+# Inject credentials with Doppler. Never mount the multi-agent secret YAML.
+x-environment: &agent-environment
+  CRUSOE_API_KEY: "${CRUSOE_API_KEY:-}"
+  CRUSOE_BASE_URL: "${CRUSOE_BASE_URL:-https://api.inference.crusoecloud.com/v1}"
+  CRUSOE_MODEL_FAST: "${CRUSOE_MODEL_FAST:-}"
+  CRUSOE_MODEL_STRONG: "${CRUSOE_MODEL_STRONG:-}"
+  CRUSOE_MODEL_CRITIC: "${CRUSOE_MODEL_CRITIC:-}"
+  CRUSOE_FAMILY_STRONG: "${CRUSOE_FAMILY_STRONG:-}"
+  CRUSOE_FAMILY_CRITIC: "${CRUSOE_FAMILY_CRITIC:-}"
+  CRUSOE_MODEL_FALLBACK: "${CRUSOE_MODEL_FALLBACK:-}"
+  CRUSOE_MODEL_FAST_FALLBACK: "${CRUSOE_MODEL_FAST_FALLBACK:-}"
+  CRUSOE_MODEL_STRONG_FALLBACK: "${CRUSOE_MODEL_STRONG_FALLBACK:-}"
+  CRUSOE_MODEL_CRITIC_FALLBACK: "${CRUSOE_MODEL_CRITIC_FALLBACK:-}"
+  BAND_DESK_AGENT_ID: "${BAND_DESK_AGENT_ID:-}"
+  BAND_SCRIBE_AGENT_ID: "${BAND_SCRIBE_AGENT_ID:-}"
+  BAND_RESEARCHER_AGENT_ID: "${BAND_RESEARCHER_AGENT_ID:-}"
+  BAND_CRITIC_AGENT_ID: "${BAND_CRITIC_AGENT_ID:-}"
+  BAND_GRAPHER_AGENT_ID: "${BAND_GRAPHER_AGENT_ID:-}"
+  BAND_CLOSER_AGENT_ID: "${BAND_CLOSER_AGENT_ID:-}"
+
 x-agent: &agent
   build: .
-  env_file: .env
   user: "${HALLWAY_UID:-1000}:${HALLWAY_GID:-1000}"
-  environment:
-    BAND_CONFIG_PATH: /app/agent_config.yaml
-  volumes:
-    - type: bind
-      source: ./agent_config.yaml
-      target: /app/agent_config.yaml
-      read_only: true
   restart: unless-stopped
   init: true
 
+# Desk and its private pseudonym salt remain on the presenting laptop.
 services:
   scribe:
     <<: *agent
     command: ["python", "-m", "hallway.agents.scribe"]
+    environment:
+      <<: *agent-environment
+      BAND_SCRIBE_API_KEY: "${BAND_SCRIBE_API_KEY:-}"
   researcher:
     <<: *agent
     profiles: ["deferred"]
     command: ["python", "-m", "hallway.agents.researcher"]
+    environment:
+      <<: *agent-environment
+      BAND_RESEARCHER_API_KEY: "${BAND_RESEARCHER_API_KEY:-}"
   critic:
     <<: *agent
     command: ["python", "-m", "hallway.agents.critic"]
+    environment:
+      <<: *agent-environment
+      BAND_CRITIC_API_KEY: "${BAND_CRITIC_API_KEY:-}"
   grapher:
     <<: *agent
     profiles: ["deferred"]
     command: ["python", "-m", "hallway.agents.grapher"]
+    environment:
+      <<: *agent-environment
+      BAND_GRAPHER_API_KEY: "${BAND_GRAPHER_API_KEY:-}"
   closer:
     <<: *agent
     profiles: ["deferred"]
     command: ["python", "-m", "hallway.agents.closer"]
+    environment:
+      <<: *agent-environment
+      BAND_CLOSER_API_KEY: "${BAND_CLOSER_API_KEY:-}"

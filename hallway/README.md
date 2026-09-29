@@ -56,16 +56,15 @@ attempted / deferred. Do not read "wired" above as "works".
 Run these commands from the repository root.
 
 ```sh
-cp .env.example .env            # CRUSOE_API_KEY, CRUSOE_MODEL_* from scripts/check_crusoe_tools.py
-cp agent_config.yaml.example agent_config.yaml   # Desk/Scribe/Critic ids + keys required now; six roles reserved
 make install
 make check                      # offline protocol tests, no network
-make demo                       # live: needs Crusoe + Band credentials and a Band lobby room; red otherwise
+doppler setup                   # ai-hackday-2026 / dev; see docs/hackday/secrets.md
+doppler run --no-fallback -- make demo         # real Crusoe + Band credentials required; red otherwise
 ```
 
 Desk runs on the presenting laptop in every topology, never on the Vultr VM, so audio stays local. Text is explicitly sent to Band and Crusoe. Start Desk with
-`.venv/bin/python -m hallway.agents.desk`; start Scribe and Critic in separate terminals with
-`.venv/bin/python -m hallway.agents.scribe` and `.venv/bin/python -m hallway.agents.critic`. The
+`doppler run --no-fallback -- .venv/bin/python -m hallway.agents.desk`; start Scribe and Critic in separate terminals with
+`doppler run --no-fallback -- .venv/bin/python -m hallway.agents.scribe` and `doppler run --no-fallback -- .venv/bin/python -m hallway.agents.critic`. The
 compose file deliberately omits Desk; it carries Scribe, Critic and, in later phases, Grapher and Closer.
 
 For a deliberately offline unit-test harness, run:
@@ -79,9 +78,18 @@ model responses, and explicitly reports no live sponsor evidence. It does not pr
 fixture as a live end-to-end run. Mixed mock/live flags are rejected; a failed live run never
 switches to this harness. Set both flags to `0` for live operation.
 
+Doppler supplies `CRUSOE_API_KEY`, exact model IDs and `BAND_<ROLE>_AGENT_ID` /
+`BAND_<ROLE>_API_KEY`. Each process needs its own API key and the three case-role IDs. Legacy
+`agent_config.yaml` remains an optional local fallback when environment credentials are absent.
+A partially configured environment credential pair fails closed. The cloud Compose configuration
+passes each service only its own Band key; no secret-file mount is required. To avoid Docker
+Compose reading a legacy `.env` during interpolation, start cloud services with
+`doppler run --no-fallback -- docker compose --env-file /dev/null up -d`. Docker deployment
+has not been verified in this checkout. `--no-fallback` disables Doppler secret-cache files.
+
 Create a Band lobby containing Desk and the human operator; copy its ID to `BAND_LOBBY_ROOM_ID`.
 `make demo` requires `BAND_HUMAN_API_KEY` to send the authenticated intake request. Alternatively,
-run `.venv/bin/python -m hallway.demo --watch-only` and follow the printed command in Band,
+run `doppler run --no-fallback -- .venv/bin/python -m hallway.demo --watch-only` and follow the printed command in Band,
 mentioning Desk. Reply to owner requests mentioning both Scribe and Critic so both can verify the
 human message. The full live `make demo` remains red until lineage and the approved room are
 implemented, even if this phase's case approval succeeds.

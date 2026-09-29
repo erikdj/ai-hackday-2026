@@ -1,5 +1,6 @@
 """Offline synthetic protocol tests, not a live sponsor or clinical validation."""
 import copy
+import os
 import json
 import unittest
 from pathlib import Path
@@ -8,6 +9,7 @@ from unittest.mock import patch, AsyncMock
 from hallway.common.brief import Brief,digest,extract_identifiers,identifier_violations,validate_brief
 from hallway.common.room import PREFIX,approved_payload,decode_messages,review,submit_brief,request_owner
 from hallway.common.runtime import make_tools, build_agent
+from hallway.common.band_cfg import credentials,identities
 from hallway.common.llm import InferenceUnavailable
 from langchain_openai import ChatOpenAI
 
@@ -106,8 +108,42 @@ class ValidationTests(unittest.TestCase):
             for tool in make_tools(role,{},IDS):
                 self.assertNotIn('config',tool.args);self.assertNotIn('room_id',tool.args)
                 self.assertNotIn(tool.name,('band_add_participant','band_create_chatroom','band_send_message'))
+    def test_unconfigured_author_is_ignored(self):
+        core={role:IDS[role] for role in ('desk','scribe','critic')}
+        self.assertEqual([],decode_messages([record('ENRICHMENT',{'facts':[]},'researcher')],core))
     def test_case_approval_not_downstream_authorization(self):
         with self.assertRaisesRegex(ValueError,'boundary'): approved_payload([])
+
+
+class CredentialTests(unittest.TestCase):
+    def env(self):
+        return {f'BAND_{role.upper()}_AGENT_ID':f'00000000-0000-0000-0000-{i:012d}' for i,role in enumerate(('desk','scribe','critic'),1)}
+    def test_own_key_only_and_peer_ids(self):
+        env=self.env();env['BAND_SCRIBE_API_KEY']='own-key'
+        with patch.dict(os.environ,env,clear=True),patch('hallway.common.band_cfg.load_agent_config') as yaml:
+            self.assertEqual(set(identities()),{'desk','scribe','critic'})
+            self.assertEqual(credentials('scribe')[1],'own-key')
+            yaml.assert_not_called()
+    def test_partial_pair_no_yaml_fallback(self):
+        for env in ({'BAND_SCRIBE_AGENT_ID':self.env()['BAND_SCRIBE_AGENT_ID']},{'BAND_SCRIBE_API_KEY':'key'},{'BAND_SCRIBE_AGENT_ID':' ','BAND_SCRIBE_API_KEY':' '}):
+            with patch.dict(os.environ,env,clear=True),patch('hallway.common.band_cfg.load_agent_config') as yaml:
+                with self.assertRaises(ValueError):credentials('scribe')
+                yaml.assert_not_called()
+    def test_yaml_only_if_env_pair_absent(self):
+        with patch.dict(os.environ,{},clear=True),patch('hallway.common.band_cfg.load_agent_config',return_value=(self.env()['BAND_SCRIBE_AGENT_ID'],'yaml-key')) as yaml:
+            self.assertEqual(credentials('scribe')[1],'yaml-key');yaml.assert_called_once()
+    def test_optional_peer_blank_allowed_malformed_rejected(self):
+        env=self.env();env['BAND_RESEARCHER_AGENT_ID']=''
+        with patch.dict(os.environ,env,clear=True):self.assertNotIn('researcher',identities())
+        env['BAND_RESEARCHER_AGENT_ID']='not-a-uuid'
+        with patch.dict(os.environ,env,clear=True):
+            with self.assertRaises(ValueError):identities()
+    def test_duplicate_and_bad_own_uuid_rejected(self):
+        env=self.env();env['BAND_CRITIC_AGENT_ID']=env['BAND_SCRIBE_AGENT_ID']
+        with patch.dict(os.environ,env,clear=True):
+            with self.assertRaises(ValueError):identities()
+        with patch.dict(os.environ,{'BAND_SCRIBE_AGENT_ID':'bad','BAND_SCRIBE_API_KEY':'key'},clear=True):
+            with self.assertRaises(ValueError):credentials('scribe')
 
 
 class ProtocolTests(unittest.IsolatedAsyncioTestCase):
@@ -149,6 +185,14 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
         await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
         self.assertEqual((await review(band,IDS,True,[]))['verdict'],'VETO')
+    async def test_verified_reply_handle_prefixes_only(self):
+        for prefix,expected in [('@team/scribe @team/critic ','APPROVED'),('@team/critic\t@team/scribe\n','APPROVED'),('@impostor @team/scribe ','VETO'),('@team/scribe-extra ','VETO')]:
+            band=FakeBand();band.filter_mentions=True;await self.initial_veto(band);brief,_=await self.repaired(band)
+            reply=band.human(prefix+"I'll own it",name='Erik Jones')
+            brief['follow_ups'][0].update(status='pending',owner='Erik Jones',owner_message_id=reply['id'])
+            await submit_brief(band,IDS,Brief.model_validate(brief));band.role='critic'
+            result=await review(band,IDS,True,[])
+            self.assertEqual(result.get('status',result.get('verdict')),expected,prefix)
     async def test_forged_agent_ownership_rejected(self):
         band=FakeBand();await self.initial_veto(band);brief,_=await self.repaired(band)
         reply=band.human("I'll own it",name='Erik Jones',sender=IDS['scribe'],sender_type='Agent')

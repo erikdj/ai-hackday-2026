@@ -24,7 +24,7 @@ def decode_messages(messages: list[dict], ids: dict[str, str]) -> list[dict]:
         if not isinstance(value, dict):
             continue
         author = AUTHORS.get(value.get('kind'))
-        if not author or message.get('sender_id') != ids[author]:
+        if not author or not ids.get(author) or message.get('sender_id') != ids.get(author):
             continue
         value = dict(value, message_id=message.get('id'))
         records.append(value)
@@ -94,7 +94,7 @@ async def recruit(tools: AgentTools, role: str, ids: dict[str,str]):
     return result
 
 
-def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], human_ids: set[str]) -> list[str]:
+def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], human_ids: set[str], reply_handles: tuple[str,...] = ()) -> list[str]:
     """Only server-authenticated human replies to an actual Scribe request count."""
     records=decode_messages(messages,ids)
     requests={r['message_id']:r for r in records if r['kind']=='OWNER_REQUEST'}
@@ -121,7 +121,15 @@ def ownership_errors(brief: Brief, messages: list[dict], ids: dict[str,str], hum
             or positions.get(item.owner_message_id,-1)<=positions.get(item.request_message_id,10**9)):
             reasons.append(f'follow-up {item.id}: owner provenance is not an authenticated human reply')
             continue
-        content=normalize(message.get('content','')).replace('’', "'").rstrip('.!')
+        content=message.get('content','').strip()
+        # Strip only exact server-verified leading handle tokens, never arbitrary
+        # @text or handles embedded in the assignment itself.
+        while content:
+            tokens=content.split(None,1)
+            if len(tokens)!=2 or tokens[0] not in reply_handles:
+                break
+            content=tokens[1]
+        content=normalize(content).replace('’', "'").rstrip('.!')
         owner=None
         if content in ("i'll own it",'i will own it'):
             preceding=[r for r in records if r['kind']=='OWNER_REQUEST' and positions.get(r['message_id'],10**9)<positions[message['id']]]
@@ -217,7 +225,8 @@ async def review(tools: AgentTools, ids: dict[str,str], approve: bool, judgment_
     await tools.get_participants()
     human_ids={p['id'] for p in tools.participants if str(p.get('type','')).casefold()=='user'}
     reasons=validate_brief(brief,state['recording'],[])
-    reasons += ownership_errors(brief,messages,ids,human_ids)
+    reply_handles=tuple(p['handle'] for p in tools.participants if p['id'] in {ids['scribe'],ids['critic']} and p.get('handle'))
+    reasons += ownership_errors(brief,messages,ids,human_ids,reply_handles)
     if not approve:
         reasons.extend(judgment_reasons or ['Critic judgment rejected unsupported interpretation'])
     if reasons:

@@ -6,6 +6,7 @@ milestones rather than releases.
 ## [Unreleased]
 
 ### Changed
+- JV-105 review follow-up: Doppler environment credentials and per-service Band keys, authenticated mention-prefix parsing for owner replies, and removal of obsolete HALLWAY JSON fixtures.
 - JV-105 work in progress: re-target the fixture protocol to synthetic HANDOFF; case-only approval, identifier and human-owner checks, local pseudonyms and Crusoe-only fallback. Offline checks do not establish live Band behavior or a deployed privacy boundary.
 - Pivot to **HANDOFF** (PHI-safe clinical handoff scribe): `docs/hackday/handoff-build-brief.md` supersedes the HALLWAY brief; demo script rewritten to the seven HANDOFF beats; ADR-0002 context amended; ledger: Merge.dev cut, Band boundary room core, Neo4j lineage edges.
 
