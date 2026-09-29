@@ -89,15 +89,24 @@ to: the audio stays on the laptop, a small team of agents works in a private roo
 nurse in it, a second agent on a different model can block the first, a human owns every
 follow-up, only a pseudonymous summary leaves the room, and the system writes down who saw what.
 
-**"Band and Crusoe still see patient data. Why is that OK?"** It is not zero exposure and we do not
-say it is. Three named agents in one room see the transcript. The argument is: *chosen*, the
-hospital picks the inference provider and the coordination layer the way it picks a cloud for its
-records system, under its own agreement and deployment, instead of the transcript going to a
-consumer AI API by default (the compose file runs the agents on any host the hospital controls);
-*minimized*, audio never moves, exactly three agents see identifiers, everything downstream gets a
-pseudonymous brief and never the transcript, and room membership is the boundary, enforced by
-Band not by promise; *provable*, the graph records which agent touched which field, which is the
-question the auditor actually asks. Today's alternative offers none of those three.
+**"Band and Crusoe still see patient data. Why is that OK?"** Say it straight: today it is only
+OK because every patient is synthetic. Three named agents in one room see the transcript, and they
+run on Crusoe inside a Band room. What we checked on 2026-09-29: Crusoe's self-serve Managed
+Inference terms say inputs and outputs are not stored to disk and are not used for training without
+opt-in, and Crusoe Cloud holds ISO 27001 and ISO 42001; the same terms also **prohibit** processing
+"health information subject to United States HIPAA regulations" and offer no business associate
+agreement, so real PHI would need a negotiated dedicated deployment that we have not confirmed
+exists. Band's public terms and privacy policy (July 2026) say nothing about HIPAA, a BAA,
+encryption, or where data is hosted. So the architecture argument is what we can claim: *chosen*
+(the hospital picks where the room and the models run; the compose file runs the agents on any host
+it controls), *minimized* (audio never moves, exactly three agents see identifiers, nothing
+downstream sees the transcript, room membership is the boundary Band enforces), *provable* (the
+graph records which agent touched which field). The vendor-contract part is procurement, and we
+say so.
+
+**"Do Crusoe or Band enclave the data or sign BAAs?"** Not that we could find. No confidential
+computing or enclave claim on either vendor's public pages; no BAA offered by either. Do not imply
+otherwise.
 
 **"Is this HIPAA compliant / de-identified?"** No claim. It is a boundary control with an
 identifier gate and an access ledger. Certification is a program, not a hackday.

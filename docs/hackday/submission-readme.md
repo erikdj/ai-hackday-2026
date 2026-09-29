@@ -80,6 +80,10 @@ integration.
   numbers are invented.
 - The identifier gate is a programmatic check plus model judgment on the outbound brief. It is
   a boundary control, not a de-identification certification.
+- Vendor terms as read on 2026-09-29: Crusoe's self-serve Managed Inference terms do not store inputs or
+  outputs and do not train on them, but prohibit HIPAA-regulated health information and offer no BAA;
+  Band's public terms are silent on HIPAA. Real PHI would need negotiated agreements neither vendor
+  publicly offers today. The demo runs on synthetic patients only.
 - Inference for anything that holds the transcript fails closed. If Crusoe is unavailable the
   case pauses; it never silently routes to another provider.
 
