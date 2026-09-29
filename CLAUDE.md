@@ -39,7 +39,8 @@ adapt the commands to whatever you run.
 2. **Everything is a pull request.** No direct pushes to `main`. One issue per PR where practical.
 3. **Humans approve PRs.** Erik or Jaiven signs off and merges. Anyone may approve their own PR or
    another's PR. **No gating:** no required reviewers, no required status checks, no branch
-   protection that blocks a merge. CI is informational only.
+   protection that blocks a merge. CI is informational only. GitHub will not let an author click
+   Approve on their own PR; for your own PR, the merge itself is the approval.
 4. **Every change gets an independent AI review locally before the PR is opened.** On Erik's
    machine that is Astra via the Codex CLI or codex plugin. Other contributors use whatever
    reviewer agent they have. The review runs **in the session**, not as a GitHub bot or PR round
@@ -124,9 +125,9 @@ docs/reference/duplocloud-devkit/  vendored devkit hackday docs (Apache-2.0)
 scripts/                       stack-agnostic helper scripts (Crusoe smoke test)
 ```
 
-Once ADR-0002 lands, product code goes under a directory named in that ADR. If the DuploCloud
-devkit path is chosen, the devkit is adopted into this repo with `scripts/init-project.sh` from the
-devkit and extensions live under `extensions/<name>/`.
+Product code goes under `hallway/` once ADR-0002 is accepted (Python, Band + LangGraph, Crusoe
+direct, FastAPI, Neo4j). The HALLWAY build brief is `docs/hackday/hallway-build-brief.md` (PR #4). If a DuploCloud
+extension is added later, it lives under `extensions/<name>/` per the devkit docs.
 
 ## Docs and hygiene
 
