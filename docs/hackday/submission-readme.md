@@ -42,7 +42,7 @@ brain. Delete Neo4j and there is no memory across encounters and no proof of who
 ```
 laptop                              Band (coordination)                 Crusoe (inference)
 ┌──────────────────────┐   text    ┌──────────────────────────┐        ┌──────────────────┐
-│ upload page          │ ────────► │ case room                │ ◄────► │ GLM-5.3  (Scribe)│
+│ upload page          │ ────────► │ case room                │ ◄────► │ V4-Flash (Scribe)│
 │ faster-whisper (local)│          │   Desk → Scribe → Critic │        │ Qwen3.8  (Desk)  │
 │ pseudo_id salt (local)│          │   human: "I'll own it"   │        │ DeepSeek (Critic)│
 └──────────────────────┘           │   VETO / APPROVE rev N   │        └──────────────────┘
