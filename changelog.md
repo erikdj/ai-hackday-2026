@@ -9,6 +9,7 @@ milestones rather than releases.
 - Compliance narrative written by a Crusoe model from lineage metadata only: `GET /lineage/narrative` on the judge dashboard, MCP tool `compliance_narrative` for the DuploCloud studio, shown on the dashboard page with the exact payload sent (agent names, identifier field names, counts; never a transcript, brief or identifier value). Fails closed on Crusoe unavailability. (JV-119, 20-minute freeze exception authorized by Erik.)
 
 ### Changed
+- Demo script: beat 5 and the pre-flight checklist name the repo `.venv` (built with uv) instead of the deleted `../ai-hackday-pr8` venv; ledger: Crusoe and DuploCloud rows record the live compliance narrative and the four-tool studio listing (JV-102, JV-119).
 - Submission text (`docs/hackday/submission-readme.md`) matches the live state: Closer marked as next, Crusoe compliance narrative in step 6, run line and fixtures corrected.
 - README shortened: per-vendor HIPAA detail moved to `docs/compliance/hipaa.md`, one section on today's data path and what changes in production, new 'Crusoe: what it does today and where it grows' section including the compliance narrative (Erik's ask).
 - Root README rewritten as the judges' pitch and repo directory (what, why each tool, the exposure/BAA table per vendor, what is built, what comes next); agent instructions moved to `docs/agent-instructions.md`; `docs/README.md` table of contents; new `docs/compliance/hipaa.md` with the vendor-terms readout as read on 2026-09-29 (overseer, Erik's ask).
