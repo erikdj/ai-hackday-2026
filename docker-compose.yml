@@ -18,13 +18,16 @@ services:
     command: ["python", "-m", "hallway.agents.scribe"]
   researcher:
     <<: *agent
+    profiles: ["deferred"]
     command: ["python", "-m", "hallway.agents.researcher"]
   critic:
     <<: *agent
     command: ["python", "-m", "hallway.agents.critic"]
   grapher:
     <<: *agent
+    profiles: ["deferred"]
     command: ["python", "-m", "hallway.agents.grapher"]
   closer:
     <<: *agent
+    profiles: ["deferred"]
     command: ["python", "-m", "hallway.agents.closer"]

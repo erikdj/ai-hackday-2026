@@ -1,100 +1,48 @@
-# HANDOFF — phase 1: the case room
+# AI Hackday 2026
 
-A nurse-to-nurse shift handoff becomes a Band case room where agents on Crusoe argue before
-anything leaves the room. Phase 1 is the spine only: Desk, Scribe, Critic and the human charge
-nurse in one Band room, with deterministic ownership and identifier checks and an approval that names the exact brief
-revision. Nothing downstream exists yet.
+Team entry for **The AI Conference Hack Day 2026** (September 29, 2026, San Francisco).
+Erik Jones and Jaiven Spence.
 
-**Every patient in this repository is synthetic.** Names, dates of birth, record numbers and phone
-numbers in `hallway/fixtures/` are invented (see `hallway/fixtures/README.md`). Say so on screen.
+Goal: build an agent that runs live, uses **Crusoe** for inference (required for the overall
+prize pool), and wires in other sponsor tools that do real work. The product is **HANDOFF**: a
+nurse-to-nurse shift handoff becomes a Band case room where agents on Crusoe extract a quoted
+clinical brief, a Critic vetoes unsupported claims, unowned follow-ups, and any identifier leaving
+the room, and Neo4j records which agent saw which field.
 
-## What phase 1 is, and is not
+## Status
 
-| Is | Is not |
+- Product code and run instructions: [hallway/README.md](hallway/README.md). Phase 1 is offline-tested; live Band/Crusoe verification remains pending.
+
+- Idea: **HANDOFF**, a PHI-safe clinical handoff scribe with an enforced data boundary and access lineage (pivoted from HALLWAY at 11:10 PDT). Build brief: [docs/hackday/handoff-build-brief.md](docs/hackday/handoff-build-brief.md). See Linear JV-95.
+- Tech stack: [ADR-0002](docs/decisions/0002-tech-stack.md), accepted. Python, Band + LangGraph, Crusoe direct, FastAPI, Neo4j.
+- Project tracking: Linear project **AI Hackday 2026** (`P-JV-47`), Jaiven team.
+
+## Read first
+
+| Doc | What |
 | --- | --- |
-| Band is the only coordination channel: transcript, brief, owner request, verdict and approval are all Band messages, authenticated by sender id. Delete Band and there is no room, no roster, no veto. | A live run. This checkout has no configured live credentials. Authenticated Band/Crusoe execution remains unverified. |
-| Critic checks are code, explained by the model: every quote is a normalized substring of the transcript; every pending follow-up has an owner; no direct identifier from the transcript appears anywhere in the outbound JSON. | A de-identification system. The identifier guard is a regex set plus an identifier list pulled from the transcript. It is tuned to the synthetic fixtures. It is not HIPAA anything. |
-| Tests exercise ownerless follow-up and identifier rejection before revision-bound approval. Live veto count/order depends on the actual extraction; no errors are fabricated to stage a second veto. | The research room, the approved (boundary) room, Grapher, Closer, Neo4j lineage, Brave. Those are phases 2 and 3 (JV-106, JV-107). The agent entrypoints exist, but their downstream execution is disabled in phase 1. |
-| An owner for an unowned follow-up comes only from a human's message in the room, recorded with that message id as provenance. Otherwise the item stays `unresolved` and the approval lists it. | Auto-assignment. The model never invents an owner. |
-| Fail closed: Crusoe model A, then Crusoe model B, then "inference unavailable, case paused" posted to the room. | Any external provider for agents that hold the transcript. |
+| [CLAUDE.md](CLAUDE.md) | Team operating rules for humans and agents. Read before anything else. |
+| [docs/hackday/event-brief.md](docs/hackday/event-brief.md) | Sponsors, prizes, judging, timeline. |
+| [docs/hackday/sponsor-integrations.md](docs/hackday/sponsor-integrations.md) | How to wire Crusoe, Band, DuploCloud, Neo4j, and the rest. |
+| [docs/decisions/](docs/decisions/) | Architecture decision records. |
+| [docs/reference/duplocloud-devkit/](docs/reference/duplocloud-devkit/) | Vendored DuploCloud devkit hackday docs. |
+| [backlog.md](backlog.md) | What is next. |
+| [changelog.md](changelog.md) | What shipped. |
 
-## Architecture (phase 1)
+## Quick start
 
-```
-  presenting laptop                          Band (app.band.ai)
-  -----------------                          -----------------------------------------
-  fixtures/handoff_2.txt  (or .wav ->        case-<slug> room
-  faster-whisper, phase 2)                     participants: Desk, Scribe, Critic, human
-        |                                      |
-        v                                      |  TRANSCRIPT   (Desk -> @Scribe @Critic)
-      Desk ---- creates room, posts ---------> |  BRIEF rev N  (Scribe -> @Critic)
-      assigns pseudo_id on the laptop          |  OWNER_REQUEST(Scribe -> @human @Critic)
-      (salted hash; mapping never leaves)      |  human reply  @Scribe @Critic "I'll own it" / "/own <id> <name>"
-                                               |  VERDICT      (Critic -> @Scribe)  VETO with reasons
-                                               |  BRIEF rev N+1 ...
-                                               |  VERDICT APPROVE <rev> + APPROVAL (Critic)
-                                               |
-                                               |  nobody else is in this room
-  every agent's brain: Crusoe Managed Inference (ids from scripts/check_crusoe_tools.py, never guessed)
+```bash
+cp .env.example .env          # fill in keys, never commit .env
+./scripts/check-crusoe.sh     # proves the Crusoe inference path works
 ```
 
-## Sponsor tools in phase 1
+Product setup instructions are added here once the stack is chosen.
 
-| Tool | Phase-1 role | Code | State at this commit |
-| --- | --- | --- | --- |
-| Crusoe | inference for Desk, Scribe, Critic | `hallway/common/llm.py` | wired, unkeyed, untested live |
-| Band | room, roster, messages, events, gate | `hallway/common/room.py`, `hallway/common/runtime.py` | wired against band-sdk 3.2.1, unkeyed, untested live |
-| Neo4j, Nebius, Brave, OpenRouter, Vultr | none in phase 1 | deferred | see `docs/hackday/integration-ledger.md` |
-| Merge.dev | cut at the pivot | none | not attempted |
-| Plaud, DuploCloud, UserTesting | cut | none | not attempted, need a device or a provisioned tenant |
+## How work happens
 
-The ledger in `docs/hackday/integration-ledger.md` is the source of truth for verified / mocked /
-attempted / deferred. Do not read "wired" above as "works".
+1. Every task is a Linear issue in the AI Hackday 2026 project.
+2. An orchestrator agent plans, a coder agent writes, a reviewer agent reviews locally before the PR.
+   Each contributor picks their own tools (Erik: Claude Code, Grok, Astra).
+3. Everything ships as a pull request. A human approves and merges. No gating.
 
-## Run
-
-```sh
-cp .env.example .env            # CRUSOE_API_KEY, CRUSOE_MODEL_* from scripts/check_crusoe_tools.py
-cp agent_config.yaml.example agent_config.yaml   # Desk/Scribe/Critic ids + keys required now; six roles reserved
-make install
-make check                      # offline protocol tests, no network
-make demo                       # live: needs Crusoe + Band credentials and a Band lobby room; red otherwise
-```
-
-Desk runs on the presenting laptop in every topology, never on the Vultr VM, so audio stays local. Text is explicitly sent to Band and Crusoe. Start Desk with
-`.venv/bin/python -m hallway.agents.desk`; start Scribe and Critic in separate terminals with
-`.venv/bin/python -m hallway.agents.scribe` and `.venv/bin/python -m hallway.agents.critic`. The
-compose file deliberately omits Desk; it carries Scribe, Critic and, in later phases, Grapher and Closer.
-
-For a deliberately offline unit-test harness, run:
-
-```sh
-MOCK_BAND=1 MOCK_CRUSOE=1 make demo
-```
-
-It prints `OFFLINE HARNESS`, runs synthetic protocol tests against a Band double and mocked
-model responses, and explicitly reports no live sponsor evidence. It does not process the selected
-fixture as a live end-to-end run. Mixed mock/live flags are rejected; a failed live run never
-switches to this harness. Set both flags to `0` for live operation.
-
-Create a Band lobby containing Desk and the human operator; copy its ID to `BAND_LOBBY_ROOM_ID`.
-`make demo` requires `BAND_HUMAN_API_KEY` to send the authenticated intake request. Alternatively,
-run `.venv/bin/python -m hallway.demo --watch-only` and follow the printed command in Band,
-mentioning Desk. Reply to owner requests mentioning both Scribe and Critic so both can verify the
-human message. The full live `make demo` remains red until lineage and the approved room are
-implemented, even if this phase's case approval succeeds.
-
-
-## Fixtures
-
-From `hallway/fixtures/README.md` (Erik's PR #9): `handoff_1` prior encounter, all follow-ups owned;
-`handoff_2` the demo (name + DOB, warfarin + ciprofloxacin, unowned daughter call); `handoff_3`
-boundary stress (spoken MRN and phone, one unsupported claim, unowned nutrition consult).
-Agents read `fixtures/<name>.txt` by name; `handoff_2` is the default.
-
-## Attempted / cut
-
-- Merge.dev: cut at the pivot, no healthcare fit.
-- Plaud, DuploCloud, UserTesting: not attempted; device or provisioned tenant required.
-- Emit.THOUGHTS: not supported by the Band LangGraph adapter (`SUPPORTED_EMIT` is tool calls and
-  usage); explicit `thought` events are posted through `band_send_event` at each protocol step instead.
+Details in [CLAUDE.md](CLAUDE.md).
