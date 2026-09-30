@@ -8,6 +8,8 @@ Jones and Jaiven Spence, TrustEdge AI / Jacobian Engineering, with their agent t
 in this repository is synthetic. This README is the pitch and the directory; the recorded demo and
 its script are in [docs/hackday/demo-script.md](docs/hackday/demo-script.md).
 
+**Recorded demo (HackerSquad project recording, 15:26 PDT):** https://hel1.your-objectstorage.com/hackersquadcontent/project-recordings/cmq5jhvv400j4p20koptqeyoa/project_rec_cmumxzgf30089mw23hd2vx8h0-2026-09-29T222609.mp4
+
 ## The problem, in plain language
 
 Nurses and doctors hand patients off to each other all day, by talking. "Mr. Callahan, born in

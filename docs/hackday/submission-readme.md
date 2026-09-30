@@ -6,6 +6,7 @@ leaves the room.**
 Built in one day at The AI Conference Hack Day 2026 by Erik Jones and Jaiven Spence
 (TrustEdge AI / Jacobian Engineering) with their agent teams. Repo:
 https://github.com/erikdj/ai-hackday-2026
+Demo video: https://hel1.your-objectstorage.com/hackersquadcontent/project-recordings/cmq5jhvv400j4p20koptqeyoa/project_rec_cmumxzgf30089mw23hd2vx8h0-2026-09-29T222609.mp4
 
 ## The problem
 
