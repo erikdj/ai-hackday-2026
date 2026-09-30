@@ -8,6 +8,7 @@ Start with the root [README.md](../README.md) (the pitch and directory) and
 | Document | What it is |
 | --- | --- |
 | [hackday/demo-script.md](hackday/demo-script.md) | The recorded demo: scene-setting, eight timed beats with fallbacks, technical dive, tool-by-tool proof, judge Q&A, rehearsal log |
+- [hackday/stage-pitch.md](hackday/stage-pitch.md): the two-minute stage pitch for the top-10 round, sixty-second proof order, judge Q&A.
 | [hackday/submission-readme.md](hackday/submission-readme.md) | The short project description pasted into the submission form |
 | [hackday/integration-ledger.md](hackday/integration-ledger.md) | One row per sponsor tool: verified / mocked / attempted / not used, with the evidence line and time |
 | [compliance/hipaa.md](compliance/hipaa.md) | HIPAA posture: what Safe Scribe does and does not do, what each vendor's terms say, the gaps, the production path |

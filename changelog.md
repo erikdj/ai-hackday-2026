@@ -9,6 +9,7 @@ milestones rather than releases.
 - Compliance narrative written by a Crusoe model from lineage metadata only: `GET /lineage/narrative` on the judge dashboard, MCP tool `compliance_narrative` for the DuploCloud studio, shown on the dashboard page with the exact payload sent (agent names, identifier field names, counts; never a transcript, brief or identifier value). Fails closed on Crusoe unavailability. (JV-119, 20-minute freeze exception authorized by Erik.)
 
 ### Changed
+- Stage pitch for the top-10 round: `docs/hackday/stage-pitch.md` (two-minute pitch, proof order, judge Q&A) (JV-102).
 - Demo script: rehearsal row 4 records the 15:06 take on case `c4584729` (human beat live, approved room `c99b8972`, Aura write); backlog notes the demo watcher's single deadline (JV-102).
 - Demo script: rehearsal log rows 1-3 (14:42-14:53) with the two failure modes found live: a bare owner reply binds only to the latest OWNER_REQUEST, and the quote-preservation guard rejects a repair whose quote the model rewrote (JV-102, JV-116).
 - Post-freeze docs sweep (JV-102): demo script sponsor-status header dated to the 14:40 PDT code freeze and beat-2 fallback states PR #33 is merged; `secrets.md` drops the stale "once PR #8 lands" lines and the `.env` download in favour of `doppler run -- <cmd>` only; submission readme uses `.venv/bin/python` for `check_crusoe_tools.py`; ledger Brave row records the three live facts in research room `6ebcdfae` (case `19ecdb31`) and the gated-off research room; dashboard README lists all four MCP tools.
